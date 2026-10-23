@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { installTouchControls } from "./input/touch";
 import { GAME_HEIGHT, GAME_WIDTH, ZOOM } from "./config";
 import { Boot } from "./scenes/Boot";
 import { CharacterSelect } from "./scenes/CharacterSelect";
@@ -33,6 +34,13 @@ const game = new Phaser.Game({
   physics: { default: "arcade", arcade: { debug: false, fixedStep: false } },
   scene: [Boot, Title, CharacterSelect, Game, Runner, Hud, Pause, LevelComplete, Victory, RunnerOver],
 });
+
+installTouchControls();
+
+// Offline play once installed to the home screen.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
+}
 
 // Handy for poking at the game from the browser console during development.
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;

@@ -7,6 +7,8 @@ export const ZOOM = 3;
 export const PHYSICS = {
   gravity: 1000,
   walkSpeed: 115,
+  /** Top speed while sprint is held. */
+  runSpeed: 185,
   /** How quickly horizontal speed reaches the target, per second. */
   acceleration: 14,
   jumpVelocity: 410,

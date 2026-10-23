@@ -48,7 +48,7 @@ export class Title extends Phaser.Scene {
     );
 
     text(this, width / 2, height - 60, `Diamonds: ${session.progress.diamonds}`, 12, "#9ad8ff");
-    text(this, width / 2, height - 30, "Arrows/WASD move  Space/Z jump  Esc pause  M mute  (gamepad works too)", 10);
+    text(this, width / 2, height - 30, "Arrows move  S sprint  D/Space jump  Esc pause  M mute  (gamepad works too)", 10);
 
     this.controls = new Controls(this);
     unlockAudioOnInput(this);

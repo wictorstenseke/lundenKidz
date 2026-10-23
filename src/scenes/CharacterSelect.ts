@@ -5,7 +5,7 @@ import { SCENES } from "../config";
 import { Controls } from "../input/controls";
 import { LEVELS } from "../levels/levels";
 import { randomOutfit, type Outfit } from "../logic/outfits";
-import { makeBody } from "./Boot";
+import { ANIM, bodyTexture, FRAME_SIZE, headAnchor, makeBike, makeBody, ORIGIN } from "../objects/sprites";
 import { handleGlobalKeys, text, unlockAudioOnInput } from "../ui";
 
 /** Either a Level to play, or `runner` for MTB Trail. */
@@ -38,8 +38,9 @@ export class CharacterSelect extends Phaser.Scene {
     this.cursor = this.add.rectangle(0, 0, 220, 300).setStrokeStyle(6, 0xffe066).setFillStyle(0xffffff, 0.08);
     this.cards = CHARACTERS.map((c, i) => {
       const x = width / 2 + (i - 1) * 260;
-      const body = this.add.sprite(0, 110, `body-${c.id}`, 0).setOrigin(0.5, 1).setScale(4);
-      const head = this.add.image(0, 110 - 24 * 4, `head-${c.id}`).setScale(0.95);
+      const body = this.add.sprite(0, 110, bodyTexture(c.id), 0).setOrigin(ORIGIN.x / FRAME_SIZE, ORIGIN.y / FRAME_SIZE).setScale(4);
+      const anchor = headAnchor(c.sprite, 0);
+      const head = this.add.image((anchor.x - ORIGIN.x) * 4, 110 + (anchor.y - ORIGIN.y) * 4, `head-${c.id}`).setScale(0.95);
       const name = text(this, 0, 135, c.name, 16);
       const card = this.add.container(x, height / 2 + 20, [body, head, name]);
       card.setSize(220, 300).setInteractive().on("pointerdown", () => this.pick(i, true));
@@ -74,7 +75,7 @@ export class CharacterSelect extends Phaser.Scene {
     lastPick = i;
     const card = this.cards[i];
     this.cursor.setPosition(card.x, card.y + 10);
-    this.cards.forEach((c, j) => (c.getAt(0) as Phaser.GameObjects.Sprite).setFrame(j === i ? 1 : 0));
+    this.cards.forEach((c, j) => this.pose(c.getAt(0) as Phaser.GameObjects.Sprite, CHARACTERS[j].id, j === i));
     if (andStart) this.start();
   }
 
@@ -100,9 +101,22 @@ export class CharacterSelect extends Phaser.Scene {
   }
 
   private dress(id: string, outfit: Outfit): void {
-    makeBody(this, id, outfit);
+    const c = CHARACTERS[lastPick];
+    makeBody(this, id, c.sprite, outfit);
+    makeBike(this, id, c.sprite, outfit);
     const body = this.cards[lastPick].getAt(0) as Phaser.GameObjects.Sprite;
-    body.setTexture(`body-${id}`, 1);
+    body.setTexture(bodyTexture(id), 0);
+    this.pose(body, id, true);
+  }
+
+  /** The highlighted Character idles (its head stays put frame to frame); the others stand still. */
+  private pose(body: Phaser.GameObjects.Sprite, id: string, selected: boolean): void {
+    if (selected) {
+      body.anims.play(ANIM.idle(id), true);
+    } else {
+      body.anims.stop();
+      body.setFrame(0);
+    }
   }
 
   private start(): void {

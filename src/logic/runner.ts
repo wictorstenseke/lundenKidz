@@ -123,14 +123,20 @@ export function availablePatterns(seconds: number): Pattern[] {
 export const FLIP_SPEED = 480;
 /** Speed (degrees/s) the bike levels itself out at when not spinning. */
 export const LEVEL_OUT_SPEED = 260;
+/** Nose-up angle (degrees) a jump pops the front wheel to, like an ollie. */
+export const OLLIE_ANGLE = 24;
+/** Seconds the nose stays up after leaving the ground. */
+export const OLLIE_HOLD = 0.3;
+/** Speed (degrees/s) the nose settles at after an ollie; slow enough to land a little on the back wheel. */
+export const OLLIE_LEVEL_SPEED = 45;
 /** How far from upright (degrees) a landing may be without crashing. */
 export const LAND_TOLERANCE = 45;
 export const FLIP_POINTS = 50;
 
 /** Angle after levelling out toward the nearest upright position (any whole number of turns). */
-export function levelOut(tilt: number, dt: number): number {
+export function levelOut(tilt: number, dt: number, speed = LEVEL_OUT_SPEED): number {
   const upright = Math.round(tilt / 360) * 360 + 0; // + 0 turns -0 into 0
-  const step = LEVEL_OUT_SPEED * dt;
+  const step = speed * dt;
   return Math.abs(upright - tilt) <= step ? upright : tilt + Math.sign(upright - tilt) * step;
 }
 

@@ -1,66 +1,53 @@
 import Phaser from "phaser";
 import { audio } from "../audio/audio";
+import { spriteKindOf } from "../characters";
 import { PHYSICS } from "../config";
 import type { Controls } from "../input/controls";
 import { Health } from "../logic/health";
 import { HEAD_SIZE } from "../scenes/Boot";
+import { ANIM, bikeTexture, bodyTexture, FRAME_SIZE, headAnchor, JUMP, ORIGIN, type SpriteKind } from "./sprites";
 
 const HEAD_DISPLAY = 22;
+/** Faster than this and the run cycle plays instead of the walk. */
+const RUN_THRESHOLD = (PHYSICS.walkSpeed + PHYSICS.runSpeed) / 2;
+/** Landing frames shown after touching down, when standing still. */
+const LAND_MS = 70;
+const RECOVER_MS = 140;
 
 /** How a Player is drawn: on foot, or riding a mountain bike in MTB Trail. */
 export type Vehicle = "feet" | "bike";
 
 interface Look {
   texture: string;
-  anim: string;
-  moveFrames: number[];
-  frameRate: number;
-  standFrame: number;
-  airFrame: number;
   size: [number, number];
   offset: [number, number];
   /** The point the sprite stands on and rotates around, as a fraction of the frame. */
   origin: [number, number];
-  /** Head centre relative to the origin, before rotation. */
-  head: { x: number; y: number };
-  /** Bob the head on stride frames. */
-  bob: boolean;
   /**
    * Drawn by a separate sprite that can tilt without moving the physics body. Points are in frame
    * pixels: the centre it spins around in the air, and the rear-wheel contact used for wheelies.
    */
-  tilting?: { center: [number, number]; rear: [number, number]; sagFrames: number[] };
+  tilting?: { center: [number, number]; rear: [number, number] };
 }
+
+/** Rear wheel contact on the bike sheet. */
+const REAR_WHEEL: [number, number] = [7.5, ORIGIN.y];
 
 function lookFor(vehicle: Vehicle, id: string): Look {
   return vehicle === "bike"
     ? {
-        texture: `bike-${id}`,
-        anim: `ride-${id}`,
-        moveFrames: [0, 1, 2, 3],
-        frameRate: 12,
-        standFrame: 0,
-        airFrame: 0,
-        size: [22, 22],
+        texture: bikeTexture(id),
+        size: [22, 20],
         offset: [5, 10],
         // The physics sprite stands on the rear wheel.
-        origin: [7 / 32, 1],
-        head: { x: 9, y: -31 },
-        bob: false,
-        tilting: { center: [16, 22], rear: [7, 32], sagFrames: [4, 5, 6] },
+        origin: [REAR_WHEEL[0] / FRAME_SIZE, REAR_WHEEL[1] / FRAME_SIZE],
+        tilting: { center: [16, 23], rear: REAR_WHEEL },
       }
     : {
-        texture: `body-${id}`,
-        anim: `walk-${id}`,
-        moveFrames: [1, 0, 2, 0],
-        frameRate: 10,
-        standFrame: 0,
-        airFrame: 3,
-        size: [10, 28],
-        offset: [3, 4],
-        origin: [0.5, 1],
-        head: { x: 0, y: -24 },
-        bob: true,
+        texture: bodyTexture(id),
+        size: [10, 26],
+        offset: [11, 4],
+        origin: [ORIGIN.x / FRAME_SIZE, ORIGIN.y / FRAME_SIZE],
       };
 }
 
@@ -69,10 +56,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   readonly health: Health;
   declare body: Phaser.Physics.Arcade.Body;
   private head: Phaser.GameObjects.Image;
+  private readonly kind: SpriteKind;
+  private readonly vehicle: Vehicle;
   private lastGroundedAt = -Infinity;
   private jumpQueuedAt = -Infinity;
   private controlLockedUntil = 0;
   private rising = false;
+  private wasGrounded = true;
+  private leftGroundAt = -Infinity;
+  private landedAt = -Infinity;
   private look: Look;
   /** The drawn bike, for looks that tilt. */
   private visual?: Phaser.GameObjects.Sprite;
@@ -80,13 +72,15 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   tilt = 0;
   /** 1 tilts around the rear wheel (wheelies, ramps), 0 around the bike's centre (flips). */
   anchor = 1;
-  /** Pixels the suspension is compressed. */
+  /** Pixels the suspension is compressed: the bike squashes down onto its wheels. */
   sag = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, readonly characterId: string, maxHearts?: number, vehicle: Vehicle = "feet") {
     const look = lookFor(vehicle, characterId);
-    super(scene, x, y, look.texture, look.standFrame);
+    super(scene, x, y, look.texture, 0);
     this.look = look;
+    this.vehicle = vehicle;
+    this.kind = spriteKindOf(characterId);
     this.health = new Health(maxHearts);
     scene.add.existing(this);
     scene.physics.add.existing(this);
@@ -96,20 +90,11 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.head = scene.add.image(x, y, `head-${characterId}`).setScale(HEAD_DISPLAY / HEAD_SIZE).setDepth(11);
     if (look.tilting) {
       const [cx, cy] = look.tilting.center;
-      this.visual = scene.add.sprite(x, y, look.texture, look.standFrame).setOrigin(cx / this.width, cy / this.height).setDepth(10);
+      this.visual = scene.add.sprite(x, y, look.texture, 0).setOrigin(cx / this.width, cy / this.height).setDepth(10);
       this.setVisible(false);
     }
     // Follow the body after physics has moved it this frame, so the head never trails behind.
     scene.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncHead, this);
-
-    if (!scene.anims.exists(look.anim)) {
-      scene.anims.create({
-        key: look.anim,
-        frames: scene.anims.generateFrameNumbers(look.texture, { frames: look.moveFrames }),
-        frameRate: look.frameRate,
-        repeat: -1,
-      });
-    }
   }
 
   get grounded(): boolean {
@@ -118,17 +103,23 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
 
   /**
    * `traction` below 1 makes the ground slippery (ice); air control is unaffected.
-   * With `autoRunSpeed` the Player runs right on their own and only jump is read.
+   * Holding sprint runs instead of walks. With `autoRunSpeed` the Player runs right on their own
+   * and only jump is read.
    */
   control(controls: Controls, now: number, dt: number, traction = 1, autoRunSpeed?: number): void {
-    if (this.grounded) this.lastGroundedAt = now;
+    const grounded = this.grounded;
+    if (grounded) this.lastGroundedAt = now;
+    if (grounded && !this.wasGrounded) this.landedAt = now;
+    if (!grounded && this.wasGrounded) this.leftGroundAt = now;
+    this.wasGrounded = grounded;
     if (controls.pressed("jump")) this.jumpQueuedAt = now;
 
     if (now >= this.controlLockedUntil) {
       const dir = autoRunSpeed !== undefined ? 1 : (controls.held("right") ? 1 : 0) - (controls.held("left") ? 1 : 0);
-      const target = autoRunSpeed ?? dir * PHYSICS.walkSpeed;
+      const speed = controls.held("sprint") ? PHYSICS.runSpeed : PHYSICS.walkSpeed;
+      const target = autoRunSpeed ?? dir * speed;
       const vx = this.body.velocity.x;
-      const grip = this.grounded ? traction : 1;
+      const grip = grounded ? traction : 1;
       this.setVelocityX(vx + (target - vx) * Math.min(1, PHYSICS.acceleration * grip * dt));
       if (dir !== 0) this.setFlipX(dir < 0);
 
@@ -137,6 +128,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
         this.setVelocityY(-PHYSICS.jumpVelocity);
         this.jumpQueuedAt = -Infinity;
         this.lastGroundedAt = -Infinity;
+        this.leftGroundAt = now;
         this.rising = true;
         audio.sfx("jump");
       }
@@ -149,19 +141,21 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     }
     if (this.body.velocity.y >= 0) this.rising = false;
 
-    this.animate();
+    this.animate(now);
     this.setAlpha(this.health.isInvincible(now) && Math.floor(now / 80) % 2 === 0 ? 0.3 : 1);
   }
 
   bounce(jumpHeld: boolean): void {
     this.setVelocityY(-(jumpHeld ? PHYSICS.stompBounceHeld : PHYSICS.stompBounce));
     this.rising = jumpHeld;
+    this.leftGroundAt = this.scene.time.now;
   }
 
   launch(velocity = PHYSICS.springVelocity): void {
     this.setVelocityY(-velocity);
     this.rising = false;
     this.lastGroundedAt = -Infinity;
+    this.leftGroundAt = this.scene.time.now;
   }
 
   knockback(fromX: number, now: number): void {
@@ -177,18 +171,25 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.setVelocity(0, 0);
   }
 
+  /** Head offset from the origin for the frame being shown, mirrored when facing left. */
+  private headOffset(): { x: number; y: number } {
+    const a = headAnchor(this.kind, Number(this.frame.name), this.vehicle);
+    return { x: (this.flipX ? -1 : 1) * (a.x - this.displayOriginX), y: a.y - this.displayOriginY };
+  }
+
   syncHead(): void {
     if (this.visual && this.look.tilting) return this.syncTilting(this.visual, this.look.tilting);
-    const bob = this.look.bob && this.anims.isPlaying && Number(this.frame.name) !== 0 ? -1 : 0;
-    const dx = (this.flipX ? -1 : 1) * this.look.head.x;
-    const dy = this.look.head.y + bob;
+    const { x: dx, y: dy } = this.headOffset();
     const cos = Math.cos(this.rotation);
     const sin = Math.sin(this.rotation);
     this.head.setPosition(this.x + dx * cos - dy * sin, this.y + dx * sin + dy * cos);
     this.head.setAlpha(this.alpha).setAngle(this.angle);
   }
 
-  /** Places the drawn bike and head: spun around the centre, shifted so the rear wheel stays put by `anchor`. */
+  /**
+   * Places the drawn bike and head: spun around the centre, shifted so the rear wheel stays put by
+   * `anchor`, and squashed down onto the wheels by `sag`.
+   */
   private syncTilting(visual: Phaser.GameObjects.Sprite, t: NonNullable<Look["tilting"]>): void {
     const ox = this.displayOriginX;
     const oy = this.displayOriginY;
@@ -202,9 +203,13 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const rr = rot(rx, ry);
     const x = this.x + (cx - ox) + this.anchor * (rx - rr.x);
     const y = this.y + (cy - oy) + this.anchor * (ry - rr.y);
-    visual.setPosition(x, y).setAngle(this.tilt).setFrame(this.frame.name).setAlpha(this.alpha);
-    const head = rot(ox + this.look.head.x - cx, oy + this.look.head.y - cy + this.sag);
-    this.head.setPosition(x + head.x, y + head.y).setAngle(this.tilt).setAlpha(this.alpha);
+    // Squash towards the wheel line and drop by the same amount, so the wheels stay on the ground.
+    const squash = (FRAME_SIZE - this.sag * 2) / FRAME_SIZE;
+    const drop = (ORIGIN.y - cy) * (1 - squash);
+    visual.setPosition(x, y + drop).setAngle(this.tilt).setFrame(this.frame.name).setAlpha(this.alpha).setScale(1, squash);
+    const h = this.headOffset();
+    const head = rot(ox + h.x - cx, (oy + h.y - cy) * squash);
+    this.head.setPosition(x + head.x, y + drop + head.y).setAngle(this.tilt).setAlpha(this.alpha);
   }
 
   /** Light2D on the body, the photo head and the bike together. */
@@ -227,19 +232,35 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     super.destroy(fromScene);
   }
 
-  private animate(): void {
-    const sagFrames = this.look.tilting?.sagFrames;
-    if (this.sag > 0 && sagFrames && this.grounded) {
-      this.anims.stop();
-      this.setFrame(sagFrames[Math.min(this.sag, sagFrames.length) - 1]);
-    } else if (!this.grounded) {
-      this.anims.stop();
-      this.setFrame(this.look.airFrame);
-    } else if (Math.abs(this.body.velocity.x) > 20) {
-      this.anims.play(this.look.anim, true);
-    } else {
-      this.anims.stop();
-      this.setFrame(this.look.standFrame);
+  private animate(now: number): void {
+    if (this.vehicle === "bike") return this.animateBike();
+    const id = this.characterId;
+    const speed = Math.abs(this.body.velocity.x);
+    if (!this.grounded) return this.hold(this.jumpFrame(now));
+    const sinceLanding = now - this.landedAt;
+    if (speed < 20 && sinceLanding < LAND_MS + RECOVER_MS) return this.hold(sinceLanding < LAND_MS ? JUMP.land : JUMP.recover);
+    if (speed > 20) this.anims.play(speed > RUN_THRESHOLD ? ANIM.run(id) : ANIM.walk(id), true);
+    else this.anims.play(ANIM.idle(id), true);
+  }
+
+  /** The jump pose that matches the flight: a short takeoff and tuck, then rise, apex and fall. */
+  private jumpFrame(now: number): number {
+    const vy = this.body.velocity.y;
+    if (vy < -60) {
+      const since = now - this.leftGroundAt;
+      return since < 70 ? JUMP.takeoff : since < 160 ? JUMP.riseTuck : JUMP.rise;
     }
+    return vy < 60 ? JUMP.apex : JUMP.fall;
+  }
+
+  private animateBike(): void {
+    if (!this.grounded) return this.hold(0);
+    if (Math.abs(this.body.velocity.x) > 20) this.anims.play(ANIM.ride(this.characterId), true);
+    else this.hold(0);
+  }
+
+  private hold(frame: number): void {
+    this.anims.stop();
+    this.setFrame(frame);
   }
 }

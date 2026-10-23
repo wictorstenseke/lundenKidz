@@ -29,6 +29,9 @@ import {
   RUN,
   sagFor,
   speedAt,
+  OLLIE_ANGLE,
+  OLLIE_HOLD,
+  OLLIE_LEVEL_SPEED,
   WHEELIE_ANGLE,
   wheelieBonus,
   type Pattern,
@@ -97,6 +100,9 @@ export class Runner extends Phaser.Scene {
   private onRamp?: Ramp;
   /** Set when jumping off a ramp; cleared on landing. */
   private airborneSince?: number;
+  /** Seconds in the air this jump, and whether the player flipped (which skips the ollie pop). */
+  private airTime = 0;
+  private flipped = false;
   /** Set while a wheelie is held. */
   private wheelieSince?: number;
   /** True from leaving the ground (or a ramp) until touching down. */
@@ -294,11 +300,18 @@ export class Runner extends Phaser.Scene {
     const airborne = !p.grounded && !this.onRamp;
     p.anchor = Phaser.Math.Linear(p.anchor, airborne ? 0 : 1, Math.min(1, dt * 10));
     if (airborne) {
+      this.airTime += dt;
       if (this.controls.held("left")) p.tilt -= FLIP_SPEED * dt;
       else if (this.controls.held("right")) p.tilt += FLIP_SPEED * dt;
-      else p.tilt = levelOut(p.tilt, dt);
+      else if (this.flipped) p.tilt = levelOut(p.tilt, dt);
+      // Ollie: nose pops up off the jump, then settles slowly so it may land on the back wheel.
+      else if (this.airTime < OLLIE_HOLD) p.tilt = Phaser.Math.Linear(p.tilt, -OLLIE_ANGLE, Math.min(1, dt * 14));
+      else p.tilt = levelOut(p.tilt, dt, OLLIE_LEVEL_SPEED);
+      if (this.controls.held("left") || this.controls.held("right")) this.flipped = true;
       return;
     }
+    this.airTime = 0;
+    this.flipped = false;
     let target = 0;
     if (this.wheelieSince !== undefined) {
       target = -WHEELIE_ANGLE;

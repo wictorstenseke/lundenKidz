@@ -15,18 +15,20 @@ npm run build    # static build in dist/
 
 | Action | Keyboard | Gamepad |
 | --- | --- | --- |
-| Move | Arrows / A D | D-pad / left stick |
-| Jump (hold = higher) | Space / Up / W / Z | A or B |
+| Move | Arrows | D-pad / left stick |
+| Sprint (hold) | S / Shift | X or RB |
+| Jump (hold = higher) | D / Space / Up / Z | A or B |
 | Pause | Esc / P | Start |
-| Confirm | Enter / Space | A / Start |
+| Confirm | Enter / Space / D | A / Start |
 | Mute | M | |
-| Wheelie (MTB Trail, on ground) | Left / A | D-pad left / stick |
+| Wheelie (MTB Trail, on ground) | Left | D-pad left / stick |
 | Backflip / frontflip (MTB Trail, in air) | Left / Right | D-pad / stick |
 
 ## Your kids
 
 - Photos: `public/kids/ellen.png`, `emil.png`, `olle.png` (cut-out heads, transparent PNG; the game adds outline, shadow and 3D shading).
-- Names and shirt colours: `src/characters.ts`.
+- Names, shirt colours and which pixel body (boy/girl) each kid uses: `src/characters.ts`.
+- Pixel bodies and bikes: `public/assets/kids/` (32x32 sheets: idle/walk/run/jump rows, plus a biking sheet), recoloured per outfit in `src/objects/sprites.ts`.
 
 ## Levels
 

@@ -1,17 +1,15 @@
 import Phaser from "phaser";
 import { CHARACTERS, getOutfit, type CharacterDef } from "../characters";
-import type { Outfit } from "../logic/outfits";
 import { FONT, SCENES } from "../config";
 import { LEVELS } from "../levels/levels";
 import { THEMES } from "../levels/themes";
 import { makeDiamondTextures } from "../objects/Diamond";
+import { makeBike, makeBody, SHEET } from "../objects/sprites";
 
 /** Cache key of a Level's Tiled JSON, when it has one. */
 export const levelJsonKey = (levelIndex: number): string => `level-${levelIndex}`;
 
 export const HEAD_SIZE = 96;
-export const BODY_W = 16;
-export const BODY_H = 32;
 
 export class Boot extends Phaser.Scene {
   constructor() {
@@ -27,6 +25,10 @@ export class Boot extends Phaser.Scene {
     this.load.spritesheet("chars", "assets/kenney/characters.png", { frameWidth: 24, frameHeight: 24 });
     this.load.image("backdrops", "assets/kenney/backgrounds.png");
     for (const c of CHARACTERS) this.load.image(`photo-${c.id}`, c.photo);
+    // The kids' pixel bodies and bikes; dressed per Character in create().
+    this.load.image(SHEET.boy, "assets/kids/boy.png");
+    this.load.image(SHEET.girl, "assets/kids/girl.png");
+    this.load.image(SHEET.bikes, "assets/kids/bikes.png");
     // Tiled Levels; a Level whose file fails to load falls back to its ASCII rows in Game.
     for (const [i, def] of LEVELS.entries()) if (def.tiled) this.load.json(levelJsonKey(i), def.tiled);
   }
@@ -35,8 +37,8 @@ export class Boot extends Phaser.Scene {
     await loadFont();
     for (const c of CHARACTERS) {
       makeHead(this, c);
-      makeBody(this, c.id, getOutfit(c.id));
-      makeBike(this, c);
+      makeBody(this, c.id, c.sprite, getOutfit(c.id));
+      makeBike(this, c.id, c.sprite, getOutfit(c.id));
     }
     makeBackdrops(this);
     makeCloud(this);
@@ -152,74 +154,6 @@ function drawFallbackHead(ctx: CanvasRenderingContext2D): void {
   ctx.stroke();
 }
 
-const hex = (n: number) => `#${n.toString(16).padStart(6, "0")}`;
-
-/**
- * Four-frame pixel body (stand, walk A, walk B, jump) wearing the outfit. Replaces any earlier body for
- * this Character, along with its walk animation, so the next Player picks up the new clothes.
- */
-export function makeBody(scene: Phaser.Scene, id: string, outfit: Outfit): void {
-  const key = `body-${id}`;
-  if (scene.anims.exists(`walk-${id}`)) scene.anims.remove(`walk-${id}`);
-  if (scene.textures.exists(key)) scene.textures.remove(key);
-  const frames = 4;
-  const canvas = scene.textures.createCanvas(key, BODY_W * frames, BODY_H)!;
-  const ctx = canvas.getContext();
-  const skin = "#f2c29b";
-  const shirt = hex(outfit.shirt);
-  const accent = hex(outfit.accent);
-  const pants = hex(outfit.pants);
-  const shoe = hex(outfit.shoes);
-  const outline = "#1d1b2a";
-  const shorts = outfit.pantsStyle === "shorts";
-
-  for (let f = 0; f < frames; f++) {
-    const ox = f * BODY_W;
-    const px = (color: string, x: number, y: number, w: number, h: number) => {
-      ctx.fillStyle = color;
-      ctx.fillRect(ox + x, y, w, h);
-    };
-    const jumping = f === 3;
-    // Torso with outline
-    px(outline, 3, 14, 10, 11);
-    px(shirt, 4, 15, 8, 9);
-    if (outfit.shirtStyle === "stripes") {
-      for (const y of [16, 18, 20, 22]) px(accent, 4, y, 8, 1);
-    } else if (outfit.shirtStyle === "spots") {
-      for (const [x, y] of [[5, 16], [9, 16], [7, 18], [11, 19], [5, 20], [9, 21], [7, 23]]) px(accent, x, y, 1, 1);
-    }
-    // Arms
-    if (jumping) {
-      px(outline, 1, 8, 3, 9);
-      px(outline, 12, 8, 3, 9);
-      px(shirt, 2, 13, 1, 3);
-      px(shirt, 13, 13, 1, 3);
-      px(skin, 2, 9, 1, 4);
-      px(skin, 13, 9, 1, 4);
-    } else {
-      const swing = f === 1 ? 1 : f === 2 ? -1 : 0;
-      px(outline, 1, 15 + swing, 3, 9);
-      px(outline, 12, 15 - swing, 3, 9);
-      px(shirt, 2, 16 + swing, 1, 3);
-      px(shirt, 13, 16 - swing, 1, 3);
-      px(skin, 2, 19 + swing, 1, 4);
-      px(skin, 13, 19 - swing, 1, 4);
-    }
-    // Pants and legs
-    px(outline, 3, 24, 10, 4);
-    px(pants, 4, 24, 8, 3);
-    const legs: [number, number][] =
-      f === 1 ? [[2, 0], [10, 0]] : f === 2 ? [[5, 0], [8, 0]] : jumping ? [[4, -2], [9, 0]] : [[4, 0], [8, 0]];
-    for (const [lx, ly] of legs) {
-      px(outline, lx - 1, 27 + ly, 5, 5);
-      px(shorts ? skin : pants, lx, 27 + ly, 3, 2);
-      px(shoe, lx - 1, 29 + ly, 5, 3);
-    }
-    canvas.add(f, 0, ox, 0, BODY_W, BODY_H);
-  }
-  canvas.refresh();
-}
-
 /** One parallax strip per theme, cut from the Kenney background sheet. */
 function makeBackdrops(scene: Phaser.Scene): void {
   const src = scene.textures.get("backdrops").getSourceImage() as HTMLImageElement;
@@ -275,130 +209,4 @@ function makeExtrudedTiles(scene: Phaser.Scene): void {
     }
   }
   canvas.refresh();
-}
-
-export const BIKE_SIZE = 32;
-
-/** Pixel-perfect line with a square brush (canvas lines would blur). */
-function pixelLine(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, color: string, w = 1): void {
-  ctx.fillStyle = color;
-  const steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1);
-  for (let i = 0; i <= steps; i++) {
-    const x = Math.round(x0 + ((x1 - x0) * i) / steps);
-    const y = Math.round(y0 + ((y1 - y0) * i) / steps);
-    ctx.fillRect(x - Math.floor(w / 2), y - Math.floor(w / 2), w, w);
-  }
-}
-
-/** Scales a colour's brightness (below 1 darkens). */
-function shade(color: number, factor: number): string {
-  const c = Phaser.Display.Color.IntegerToColor(color);
-  const f = (v: number) => Math.max(0, Math.min(255, Math.round(v * factor)));
-  return hex(Phaser.Display.Color.GetColor(f(c.red), f(c.green), f(c.blue)));
-}
-
-/**
- * Full-suspension mountain bike with the kid pedalling; the photo head is added on top in-game.
- * Frames 0-3 pedal round; frames 4-6 are the suspension compressed by 1-3 px on landing.
- * Wheels sit at x 7 and 25 with the ground on the bottom row. Everything is set pixel by pixel so
- * nothing gets blurry edges.
- */
-function makeBike(scene: Phaser.Scene, c: CharacterDef): void {
-  const pedalFrames = 4;
-  const variants: { crank: number; sag: number }[] = [
-    ...Array.from({ length: pedalFrames }, (_, f) => ({ crank: (f / pedalFrames) * Math.PI * 2, sag: 0 })),
-    { crank: 0, sag: 1 },
-    { crank: 0, sag: 2 },
-    { crank: 0, sag: 3 },
-  ];
-  const canvas = scene.textures.createCanvas(`bike-${c.id}`, BIKE_SIZE * variants.length, BIKE_SIZE)!;
-  const ctx = canvas.getContext();
-  variants.forEach(({ crank, sag }, f) => {
-    ctx.save();
-    ctx.translate(f * BIKE_SIZE, 0);
-    drawBike(ctx, c, crank, (f % pedalFrames) * (Math.PI / 8), sag);
-    ctx.restore();
-    canvas.add(f, 0, f * BIKE_SIZE, 0, BIKE_SIZE, BIKE_SIZE);
-  });
-  canvas.refresh();
-}
-
-/** `sag` lowers the frame and rider onto the wheels: the fork's gold stanchion and the shock shorten. */
-function drawBike(ctx: CanvasRenderingContext2D, c: CharacterDef, crank: number, turn: number, sag: number): void {
-  const tire = "#2b2233";
-  const rim = "#c8ccd8";
-  const spoke = "#8a90a8";
-  const black = "#1d1b2a";
-  const gold = "#e8c060";
-  const spring = "#ff9f1c";
-  const silver = "#d0d4e0";
-  const frameColor = hex(c.shirt);
-  const frameShadow = shade(c.shirt, 0.7);
-  const jersey = shade(c.shirt, 0.55);
-  const skin = "#f2c29b";
-  const WHEEL_Y = 25;
-  const line = (x0: number, y0: number, x1: number, y1: number, color: string, w = 1) => pixelLine(ctx, x0, y0, x1, y1, color, w);
-  const dot = (x: number, y: number, color: string, w = 1, h = w) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(x, y, w, h);
-  };
-  // Everything sprung (frame, rider) is drawn `s` pixels lower.
-  const s = sag;
-
-  // Wheels, pixel by pixel: knobbly tyre, rim, two spokes, disc rotor, hub.
-  for (const hx of [7, 25]) {
-    for (let y = WHEEL_Y - 8; y <= WHEEL_Y + 8; y++) {
-      for (let x = hx - 8; x <= hx + 8; x++) {
-        const dx = x - hx;
-        const dy = y - WHEEL_Y;
-        const d = Math.hypot(dx, dy);
-        const a = Math.atan2(dy, dx);
-        const knob = Math.abs(Math.sin(4 * (a - turn))) > 0.7;
-        if (d > 6.9 || y > 31) continue;
-        if (d > 6.2) { if (knob) dot(x, y, tire); continue; }
-        if (d > 4.6) { dot(x, y, tire); continue; }
-        if (d > 3.7) { dot(x, y, rim); continue; }
-        if (d < 0.8) { dot(x, y, black); continue; }
-        if (d >= 1.5 && d < 2.4) { dot(x, y, silver); continue; }
-        if (Math.abs(Math.sin(a - turn)) < 0.25 || Math.abs(Math.cos(a - turn)) < 0.25) dot(x, y, spoke);
-      }
-    }
-  }
-
-  // Rear end: chain stay and seat stay run from the axle up to the sprung frame.
-  line(8, 24, 15, 24 + Math.min(s, 1), frameShadow, 2);
-  line(8, 24, 12, 17 + s, frameShadow, 2);
-  line(12, 17 + s, 14, 18 + s, black, 1);
-  // Front triangle
-  line(21, 16 + s, 16, 23 + Math.min(s, 1), frameColor, 2);
-  line(20, 14 + s, 13, 16 + s, frameColor, 2);
-  line(15, 23 + Math.min(s, 1), 12, 13 + s, frameColor, 2);
-  line(21, 13 + s, 21, 17 + s, frameColor, 2);
-  // Rear shock: black body with an orange spring that squashes as it compresses.
-  line(14, 19 + s, 18, 20 + s, black, 2);
-  dot(15, 19 + s, spring);
-  if (s < 2) dot(17, 20 + s, spring);
-  // Suspension fork: the gold stanchion slides into the fixed black lower leg.
-  if (s < 3) line(21, 17 + s, 22, 20, gold, 2);
-  line(22, 20, 25, 25, black, 2);
-  // Cockpit: stem, wide riser bar.
-  dot(21, 12 + s, black);
-  line(19, 12 + s, 25, 11 + s, black, 1);
-  // Dropper post and saddle
-  line(12, 13 + s, 11, 11 + s, silver, 1);
-  line(9, 10 + s, 13, 10 + s, black, 1);
-  // Chainring and crank
-  dot(14, 23, spoke, 3, 3);
-  dot(15, 24, black);
-  const foot = { x: 15 + Math.round(Math.cos(crank) * 3), y: 24 + Math.round(Math.sin(crank) * 3) };
-  line(15, 24, foot.x, foot.y, black, 1);
-
-  // Rider: leg on the pedal, body leaning forward to the bar.
-  const knee = { x: Math.round((11 + foot.x) / 2) + 4, y: Math.round((10 + s + foot.y) / 2) - 2 };
-  line(11, 9 + s, knee.x, knee.y, hex(c.pants), 2);
-  line(knee.x, knee.y, foot.x, foot.y, hex(c.pants), 2);
-  dot(foot.x - 1, foot.y, black, 3, 1);
-  line(11, 9 + s, 16, 4 + s, jersey, 3);
-  line(16, 5 + s, 21, 10 + s, jersey, 2);
-  dot(21, 10 + s, skin, 2, 1);
 }
