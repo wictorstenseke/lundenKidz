@@ -61,12 +61,11 @@ export function litIfEnabled<T extends Phaser.GameObjects.GameObject>(obj: T, en
   return obj;
 }
 
+export type LanternKind = "lantern" | "post";
 export const LANTERN_TEXTURE = "lantern";
-const LANTERN_W = 8;
-const LANTERN_H = 12;
-/** Glass center in the texture, origin (0.5, 1): offset from the sprite's (x, y). */
-const GLASS_DX = 0;
-const GLASS_DY = -5;
+export const POST_TEXTURE = "light-post";
+/** Glass centre, as an offset from the sprite's bottom-centre (x, y). */
+const GLASS_DY: Record<LanternKind, number> = { lantern: -5, post: -25 };
 
 /** "." transparent, O dark frame, Y warm glass, H highlight, G hook. */
 const LANTERN_SHAPE = [
@@ -83,18 +82,54 @@ const LANTERN_SHAPE = [
   "........",
   "........",
 ];
+/** Tall street light: lamp head on an iron pole with a footed base. */
+const POST_SHAPE = [
+  "..OOOO..",
+  ".OYYYYO.",
+  ".OYHYYO.",
+  ".OYYYYO.",
+  "..OOOO..",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "...GG...",
+  "..GGGG..",
+  ".GGGGGG.",
+  ".OOOOOO.",
+];
 const LANTERN_PALETTE: Record<string, string> = {
   O: "#2a2018",
   Y: "#ffc850",
   H: "#fff2b0",
   G: "#4a4a50",
 };
+const SHAPES: Record<LanternKind, { key: string; rows: string[] }> = {
+  lantern: { key: LANTERN_TEXTURE, rows: LANTERN_SHAPE },
+  post: { key: POST_TEXTURE, rows: POST_SHAPE },
+};
 
-function makeLanternTexture(scene: Phaser.Scene): void {
-  if (scene.textures.exists(LANTERN_TEXTURE)) return;
-  const canvas = scene.textures.createCanvas(LANTERN_TEXTURE, LANTERN_W, LANTERN_H)!;
+function makeLanternTexture(scene: Phaser.Scene, kind: LanternKind): void {
+  const { key, rows } = SHAPES[kind];
+  if (scene.textures.exists(key)) return;
+  const canvas = scene.textures.createCanvas(key, rows[0].length, rows.length)!;
   const ctx = canvas.getContext();
-  LANTERN_SHAPE.forEach((row, y) => {
+  rows.forEach((row, y) => {
     [...row].forEach((ch, x) => {
       const color = LANTERN_PALETTE[ch];
       if (!color) return;
@@ -112,24 +147,24 @@ export interface Lantern {
 }
 
 /**
- * Small pixel lantern at (x, y) (bottom-center) with an optional warm point light and gentle flicker.
- * With `enabled` false only the sprite is created.
+ * Pixel lantern (or tall light post) standing at (x, y) (bottom-centre) with an optional warm point
+ * light at the glass and a gentle flicker. With `enabled` false only the sprite is created.
  */
 export function addLantern(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  opts: { color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean } = {},
+  opts: { kind?: LanternKind; color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean } = {},
 ): Lantern {
-  const { color = 0xffb060, radius = 70, intensity = 1.2, flicker = true, enabled = true } = opts;
-  makeLanternTexture(scene);
-  const sprite = scene.add.image(x, y, LANTERN_TEXTURE).setOrigin(0.5, 1).setDepth(1);
+  const { kind = "lantern", color = 0xffb060, radius = kind === "post" ? 90 : 70, intensity = 1.2, flicker = true, enabled = true } = opts;
+  makeLanternTexture(scene, kind);
+  const sprite = scene.add.image(x, y, SHAPES[kind].key).setOrigin(0.5, 1).setDepth(1);
 
   let light: Phaser.GameObjects.Light | undefined;
   let tween: Phaser.Tweens.Tween | undefined;
   if (enabled) {
     // z is the light's height above lit objects (at z=0); strong values are 0..radius/2.
-    light = scene.lights.addLight(x + GLASS_DX, y + GLASS_DY, radius, color, intensity, radius * 0.3);
+    light = scene.lights.addLight(x, y + GLASS_DY[kind], radius, color, intensity, radius * 0.3);
     if (flicker) {
       tween = scene.tweens.add({
         targets: light,

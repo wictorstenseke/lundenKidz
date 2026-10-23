@@ -1,6 +1,8 @@
 export type Terrain = "empty" | "ground" | "block" | "platform" | "cloud";
 export type DecorKind = "plant" | "fence" | "sign";
 export type EnemyKind = "walker" | "hopper" | "spiky";
+/** A hand lantern on the ground, or a tall light post. */
+export type LanternKind = "lantern" | "post";
 
 export interface Cell {
   x: number;
@@ -20,8 +22,8 @@ export interface ParsedLevel {
   enemies: (Cell & { kind: EnemyKind })[];
   springs: Cell[];
   decor: (Cell & { kind: DecorKind })[];
-  /** Lanterns: decoration that also carries a Light2D point light. */
-  lanterns: Cell[];
+  /** Lanterns and light posts: decoration that also carries a Light2D point light. */
+  lanterns: (Cell & { kind: LanternKind })[];
 }
 
 /**
@@ -30,7 +32,7 @@ export interface ParsedLevel {
  *   P start    G Goal Flag   c Checkpoint   j spring
  *   d Diamond  h Heart Pickup
  *   w Walker   o Hopper   s Spiky
- *   t plant    f fence   i sign   l lantern   space or . air
+ *   t plant    f fence   i sign   l lantern   L light post   space or . air
  */
 export function parseLevel(rows: string[]): ParsedLevel {
   const width = Math.max(...rows.map((r) => r.length));
@@ -75,7 +77,8 @@ export function parseLevel(rows: string[]): ParsedLevel {
         case "t": level.decor.push({ ...cell, kind: "plant" }); break;
         case "f": level.decor.push({ ...cell, kind: "fence" }); break;
         case "i": level.decor.push({ ...cell, kind: "sign" }); break;
-        case "l": level.lanterns.push(cell); break;
+        case "l": level.lanterns.push({ ...cell, kind: "lantern" }); break;
+        case "L": level.lanterns.push({ ...cell, kind: "post" }); break;
         default:
           throw new Error(`Unknown level character '${ch}' at ${x},${y}`);
       }

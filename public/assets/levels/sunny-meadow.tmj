@@ -2065,8 +2065,8 @@
         },
         {
           "id": 40,
-          "name": "lantern",
-          "type": "lantern",
+          "name": "lightpost",
+          "type": "lightpost",
           "x": 288,
           "y": 162,
           "width": 0,
@@ -2113,8 +2113,8 @@
         },
         {
           "id": 44,
-          "name": "lantern",
-          "type": "lantern",
+          "name": "lightpost",
+          "type": "lightpost",
           "x": 900,
           "y": 162,
           "width": 0,
@@ -2197,8 +2197,8 @@
         },
         {
           "id": 51,
-          "name": "lantern",
-          "type": "lantern",
+          "name": "lightpost",
+          "type": "lightpost",
           "x": 1404,
           "y": 162,
           "width": 0,
@@ -2305,8 +2305,8 @@
         },
         {
           "id": 60,
-          "name": "lantern",
-          "type": "lantern",
+          "name": "lightpost",
+          "type": "lightpost",
           "x": 2196,
           "y": 162,
           "width": 0,

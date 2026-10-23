@@ -81,8 +81,8 @@ Only objects that call `setLighting(true)` are affected (the v4 `Lighting` compo
 `setPipeline('Light2D')`); everything else draws exactly as before. The Game scene opts in the terrain
 layer, decor, enemies and the Player body (the photo head stays unlit on purpose).
 
-Lanterns are placed with `l` in the ASCII maps (or a `lantern` point object in Tiled): a pixel lantern
-sprite with a glow filter and a warm point light (`scene.lights.addLight(x, y, radius, color, intensity, z)`)
+Lanterns are placed with `l` and light posts with `L` in the ASCII maps (`lantern` / `lightpost` point
+objects in Tiled): a pixel sprite with a glow filter and a warm point light (`scene.lights.addLight(x, y, radius, color, intensity, z)`)
 with a flicker tween. Lights have a `z` height in v4; the lantern uses `radius * 0.3`. `maxLights: 16` in
 the game config caps how many lights the renderer handles per camera at once.
 

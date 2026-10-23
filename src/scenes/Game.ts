@@ -143,7 +143,7 @@ export class Game extends Phaser.Scene {
     const spawn = this.checkpoint ?? this.level.start;
     this.player = litIfEnabled(new Player(this, cx(spawn), (spawn.y + 1) * TILE, this.data_.characterId), this.lit);
     for (const l of this.level.lanterns) {
-      const lantern = addLantern(this, cx(l), (l.y + 1) * TILE, { enabled: this.lit });
+      const lantern = addLantern(this, cx(l), (l.y + 1) * TILE, { kind: l.kind, enabled: this.lit });
       addGlow(lantern.sprite, 0xffb060, 1.5);
     }
     this.lastSafe = { x: this.player.x, y: this.player.y };
