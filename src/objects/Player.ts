@@ -207,6 +207,14 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     this.head.setPosition(x + head.x, y + head.y).setAngle(this.tilt).setAlpha(this.alpha);
   }
 
+  /** Light2D on the body, the photo head and the bike together. */
+  setLit(enabled: boolean): this {
+    this.setLighting(enabled);
+    this.head.setLighting(enabled);
+    this.visual?.setLighting(enabled);
+    return this;
+  }
+
   setHeadTint(tint: number | undefined): void {
     if (tint === undefined) this.head.clearTint();
     else this.head.setTint(tint);

@@ -79,7 +79,7 @@ On by default (WebGL only; `?lights=0` turns it off). The scene's `LightsManager
 theme's `ambient` colour (`src/levels/themes.ts`: bright outdoors, dim in Rumble Cave and Spooky Castle).
 Only objects that call `setLighting(true)` are affected (the v4 `Lighting` component replaces
 `setPipeline('Light2D')`); everything else draws exactly as before. The Game scene opts in the terrain
-layer, decor, enemies and the Player body (the photo head stays unlit on purpose).
+layer, decor, enemies and the Player (body and photo head, via `Player.setLit`).
 
 Lanterns are placed with `l` and light posts with `L` in the ASCII maps (`lantern` / `lightpost` point
 objects in Tiled): a pixel sprite with a glow filter and a warm point light (`scene.lights.addLight(x, y, radius, color, intensity, z)`)
