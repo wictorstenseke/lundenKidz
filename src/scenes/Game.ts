@@ -11,6 +11,7 @@ import { collectDiamond } from "../logic/diamonds";
 import { FX } from "../fx/flags";
 import { addGlow, applyCameraFx } from "../fx/filters";
 import { addLantern, enableLights, litIfEnabled } from "../fx/lights";
+import { ambientLeaves, itemSparkle, landingDust } from "../fx/particles";
 import { createParallax, type ParallaxHandle } from "../fx/parallax";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
@@ -42,6 +43,11 @@ export interface HudState {
 type Phase = "playing" | "dying" | "won";
 
 const FRAME = { heart: 44, flag: [111, 112], pole: 131, spring: [107, 108], fence: 106, sign: 85 };
+/** Drifting particles per theme: leaves in the meadow, snowflakes on the hills. */
+const AMBIENT: Partial<Record<Theme["id"], Parameters<typeof ambientLeaves>[1]>> = {
+  grass: { color: 0x6f9a3a },
+  snow: { color: 0xffffff, accent: 0xdff6f5 },
+};
 
 export class Game extends Phaser.Scene {
   private data_!: GameData;
@@ -58,6 +64,9 @@ export class Game extends Phaser.Scene {
   private parallax!: ParallaxHandle;
   /** Light2D is on for this Level (FX.lights flag and WebGL). */
   private lit = false;
+  private wasGrounded = true;
+  /** Downward speed on the last airborne frame, for landing dust. */
+  private prevVy = 0;
 
   constructor() {
     super(SCENES.game);
@@ -150,6 +159,8 @@ export class Game extends Phaser.Scene {
     cam.startFollow(this.player, false, 0.12, 0.12, 0, 20);
     cam.setDeadzone(24, 40);
     applyCameraFx(cam);
+    const drift = AMBIENT[this.theme.id];
+    if (drift) ambientLeaves(this, drift);
 
     this.controls = new Controls(this);
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());
@@ -172,6 +183,7 @@ export class Game extends Phaser.Scene {
     }
 
     this.player.control(this.controls, time, delta / 1000, this.theme.traction);
+    this.trackLanding();
     this.fadeSky();
     this.trackSafeGround();
     if (this.player.body.top > this.level.height * TILE + 8) this.fallIntoPit();
@@ -198,6 +210,16 @@ export class Game extends Phaser.Scene {
         .setAlpha(rnd.realInRange(0.3, 0.55))
         .setScale(rnd.pick([1, 1, 2]));
     }
+  }
+
+  /** Dust when the Player touches down after a fall. */
+  private trackLanding(): void {
+    const grounded = this.player.grounded;
+    if (grounded && !this.wasGrounded && this.prevVy > 120) {
+      landingDust(this, this.player.x, this.player.body.bottom, this.prevVy / 400);
+    }
+    this.wasGrounded = grounded;
+    if (!grounded) this.prevVy = this.player.body.velocity.y;
   }
 
   /** In tall Levels the sky darkens as the camera climbs. */
@@ -354,6 +376,7 @@ export class Game extends Phaser.Scene {
 
   private takeHeart(img: Phaser.Physics.Arcade.Image): void {
     if (!this.player.health.heal()) return;
+    itemSparkle(this, img.x, img.y, 0xff6080);
     img.destroy();
     audio.sfx("heart");
     this.emitHud();

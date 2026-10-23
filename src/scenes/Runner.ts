@@ -7,6 +7,7 @@ import { THEMES } from "../levels/themes";
 import { resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
 import { applyCameraFx } from "../fx/filters";
+import { ambientLeaves, itemSparkle, landingDust } from "../fx/particles";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { runScore } from "../logic/highscores";
 import {
@@ -168,6 +169,7 @@ export class Runner extends Phaser.Scene {
     cam.setZoom(ZOOM).setBounds(-1000, -SKY_ABOVE, 1e8, WORLD_H + SKY_ABOVE).setBackgroundColor(theme.sky);
     cam.startFollow(this.player, false, 1, 0.12, -LOOK_AHEAD, -CAMERA_BELOW);
     applyCameraFx(cam);
+    ambientLeaves(this, { color: 0x6f9a3a });
 
     this.controls = new Controls(this);
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());
@@ -318,6 +320,7 @@ export class Runner extends Phaser.Scene {
     if (!this.inAir) return;
     this.inAir = false;
     this.compress(sagFor(this.fallSpeed));
+    if (this.fallSpeed > 120) landingDust(this, p.x, p.body.bottom, this.fallSpeed / 400);
     const { crashed, flips } = landing(p.tilt);
     const air = this.airborneSince === undefined ? 0 : airBonus((time - this.airborneSince) / 1000);
     this.airborneSince = undefined;
@@ -562,6 +565,7 @@ export class Runner extends Phaser.Scene {
   private pickUp(item: Phaser.Physics.Arcade.Image): void {
     if (item.getData("kind") === "heart") {
       if (!this.player.health.heal()) return;
+      itemSparkle(this, item.x, item.y, 0xff6080);
       audio.sfx("heart");
     } else {
       this.diamonds += 1;
