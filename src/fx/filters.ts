@@ -1,22 +1,33 @@
 import Phaser from "phaser";
 import { FX, type FxFlags } from "./flags";
 
-/** Tunables. Bloom = threshold -> blur -> ADD onto original. */
+/**
+ * Tunables. Bloom = threshold -> blur -> ADD onto original (what Phaser.Actions.AddEffectBloom builds).
+ * Tuned by eye in Sunny Meadow: clouds, white glints and the diamond halo glow; the sky and grass do not.
+ */
 export const FX_TUNING = {
-  /** Luma range kept by threshold (0-1); only brighter pixels bloom. */
-  bloomThreshold: 0.75,
+  /**
+   * Threshold is per colour channel, not luminance: anything with a channel above this blooms.
+   * The grass sky is #7ff0a5 (green 0.94), so it must stay above that or the whole sky glows.
+   */
+  bloomThreshold: 0.95,
   /** Blur quality (0 low, 1 med, 2 high), x/y offsets, strength, steps. */
   bloomBlurQuality: 1,
   bloomBlurX: 2,
   bloomBlurY: 2,
   bloomBlurStrength: 1,
-  /** Blend amount of the blurred highlights (0.25-0.35 is subtle). */
-  bloomAmount: 0.3,
-  /** Vignette center (0-1), radius (large = gentle), strength (0.3-0.45 mild). */
+  /** Blend amount of the blurred highlights (0.25-0.4 is subtle). */
+  bloomAmount: 0.35,
+  /**
+   * Vignette: the shader is fully dark OUTSIDE the radius (normalised screen distance from the centre,
+   * corners are at 0.71) and darkens by sin(d / radius * PI * strength) inside it. A radius well above
+   * 0.71 with a low strength gives a gentle, nearly linear fall-off: ~10% at a quarter of the way
+   * out, ~27% in the corners.
+   */
   vignetteX: 0.5,
   vignetteY: 0.5,
-  vignetteRadius: 0.85,
-  vignetteStrength: 0.4,
+  vignetteRadius: 2.0,
+  vignetteStrength: 0.25,
 } as const;
 
 export interface CameraFx {
