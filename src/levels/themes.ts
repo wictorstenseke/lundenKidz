@@ -19,6 +19,8 @@ export interface Theme {
   clouds: boolean;
   /** Multiplied into every terrain tile. */
   tint: number;
+  /** Light2D ambient colour for lit objects: bright outdoors, dim underground. */
+  ambient: number;
   music: MusicId;
 }
 
@@ -38,6 +40,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     traction: 1,
     clouds: true,
     tint: 0xffffff,
+    ambient: 0xc8c8d4,
     music: "meadow",
   },
   cave: {
@@ -51,6 +54,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     traction: 1,
     clouds: false,
     tint: 0xd9c4b8,
+    ambient: 0x4a4458,
     music: "cave",
   },
   snow: {
@@ -64,6 +68,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     traction: 0.25,
     clouds: true,
     tint: 0xffffff,
+    ambient: 0xd8dce8,
     music: "snow",
   },
   sky: {
@@ -78,6 +83,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     traction: 1,
     clouds: true,
     tint: 0xffffff,
+    ambient: 0xc0c8e0,
     music: "sky",
   },
   castle: {
@@ -91,6 +97,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     traction: 1,
     clouds: false,
     tint: 0xb8b0d8,
+    ambient: 0x403a58,
     music: "castle",
   },
 };

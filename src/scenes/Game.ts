@@ -91,7 +91,7 @@ export class Game extends Phaser.Scene {
 
     this.physics.world.gravity.y = PHYSICS.gravity;
     this.physics.world.setBounds(0, 0, worldW, worldH + 200, true, true, false, false);
-    this.lit = enableLights(this, FX.lights);
+    this.lit = enableLights(this, FX.lights, this.theme.ambient);
     this.createBackdrop(worldW, worldH);
     const layer = litIfEnabled(this.createTerrain(), this.lit);
     this.createDecor();
@@ -142,9 +142,10 @@ export class Game extends Phaser.Scene {
 
     const spawn = this.checkpoint ?? this.level.start;
     this.player = litIfEnabled(new Player(this, cx(spawn), (spawn.y + 1) * TILE, this.data_.characterId), this.lit);
-    // Test object for Light2D: a lantern two tiles right of the start, glowing even with lights off.
-    const lantern = addLantern(this, cx({ x: this.level.start.x + 2, y: 0 }), (this.level.start.y + 1) * TILE, { enabled: this.lit });
-    addGlow(lantern.sprite, 0xffb060, 1.5);
+    for (const l of this.level.lanterns) {
+      const lantern = addLantern(this, cx(l), (l.y + 1) * TILE, { enabled: this.lit });
+      addGlow(lantern.sprite, 0xffb060, 1.5);
+    }
     this.lastSafe = { x: this.player.x, y: this.player.y };
 
     this.physics.add.collider(this.player, layer);

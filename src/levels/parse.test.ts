@@ -4,7 +4,7 @@ import { parseLevel } from "./parse";
 describe("parseLevel", () => {
   const rows = [
     "        d    G",
-    "  P   ===  c ",
+    "  P l ===  c ",
     "#####   #####",
   ];
 
@@ -13,6 +13,10 @@ describe("parseLevel", () => {
     expect(level.width).toBe(14);
     expect(level.height).toBe(3);
     expect(level.terrain[2][13]).toBe("empty");
+  });
+
+  it("finds lanterns", () => {
+    expect(parseLevel(rows).lanterns).toEqual([{ x: 4, y: 1 }]);
   });
 
   it("classifies terrain", () => {

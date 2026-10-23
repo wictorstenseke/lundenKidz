@@ -1,4 +1,4 @@
-/** Visual-effect toggles. Override via URL: ?bloom=0 ?vignette=1 ?glow=off ?lights=on ?fx=0 (all off first). */
+/** Visual-effect toggles. Override via URL: ?bloom=0 ?vignette=1 ?glow=off ?lights=0 ?fx=0 (all off first). */
 export interface FxFlags {
   bloom: boolean;
   vignette: boolean;
@@ -6,7 +6,7 @@ export interface FxFlags {
   lights: boolean;
 }
 
-export const DEFAULT_FX: FxFlags = { bloom: true, vignette: true, glow: true, lights: false };
+export const DEFAULT_FX: FxFlags = { bloom: true, vignette: true, glow: true, lights: true };
 
 const KEYS: (keyof FxFlags)[] = ["bloom", "vignette", "glow", "lights"];
 

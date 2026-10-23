@@ -20,6 +20,8 @@ export interface ParsedLevel {
   enemies: (Cell & { kind: EnemyKind })[];
   springs: Cell[];
   decor: (Cell & { kind: DecorKind })[];
+  /** Lanterns: decoration that also carries a Light2D point light. */
+  lanterns: Cell[];
 }
 
 /**
@@ -28,7 +30,7 @@ export interface ParsedLevel {
  *   P start    G Goal Flag   c Checkpoint   j spring
  *   d Diamond  h Heart Pickup
  *   w Walker   o Hopper   s Spiky
- *   t plant    f fence   i sign   space or . air
+ *   t plant    f fence   i sign   l lantern   space or . air
  */
 export function parseLevel(rows: string[]): ParsedLevel {
   const width = Math.max(...rows.map((r) => r.length));
@@ -44,6 +46,7 @@ export function parseLevel(rows: string[]): ParsedLevel {
     enemies: [],
     springs: [],
     decor: [],
+    lanterns: [],
   };
 
   rows.forEach((row, y) => {
@@ -72,6 +75,7 @@ export function parseLevel(rows: string[]): ParsedLevel {
         case "t": level.decor.push({ ...cell, kind: "plant" }); break;
         case "f": level.decor.push({ ...cell, kind: "fence" }); break;
         case "i": level.decor.push({ ...cell, kind: "sign" }); break;
+        case "l": level.lanterns.push(cell); break;
         default:
           throw new Error(`Unknown level character '${ch}' at ${x},${y}`);
       }

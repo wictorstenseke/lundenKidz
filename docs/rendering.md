@@ -32,7 +32,7 @@ All effects are in `src/fx/`. `src/fx/flags.ts` reads the URL once at startup:
 | `bloom` | on | `?bloom=0` | Bright highlights (clouds, glints, diamond halo) bleed softly. Camera internal filter: threshold → blur → ADD, same recipe as `Phaser.Actions.AddEffectBloom`. |
 | `vignette` | on | `?vignette=0` | Gentle darkening towards the screen edges. Camera external filter. |
 | `glow` | on | `?glow=0` | Per-object glow filter (`addGlow`), used on the lantern. |
-| `lights` | off | `?lights=1` | Light2D: ambient light darkens opted-in objects, point lights brighten them. |
+| `lights` | on | `?lights=0` | Light2D: per-theme ambient darkens opted-in objects, lantern point lights brighten them. |
 
 `?fx=0` turns everything off first, then per-flag params still apply (`?fx=0&bloom=1` is bloom only).
 Values accept `0/1`, `on/off`, `true/false`.
@@ -67,7 +67,7 @@ cam.filters.external.list[0].active = false; // vignette
 Where they are wired in:
 
 - `Game.create`: `enableLights` → `createBackdrop` (parallax + clouds) → terrain (`litIfEnabled`) → decor,
-  enemies, player (`litIfEnabled`) → lantern two tiles right of the start (`addLantern` + `addGlow`) →
+  enemies, player (`litIfEnabled`) → one lantern per `l` cell (`addLantern` + `addGlow`) →
   `applyCameraFx` → `ambientLeaves` (leaves in the meadow, snowflakes on Snowy Hills).
 - `Game.update`: `parallax.update()` every frame; `trackLanding()` puffs dust when the Player touches down
   faster than 120 px/s; `takeHeart` sparkles.
@@ -75,12 +75,16 @@ Where they are wired in:
 
 ## Light2D
 
-With `?lights=1` (WebGL only) the scene's `LightsManager` is enabled with ambient `0x8a8aa0`. Only objects
-that call `setLighting(true)` are affected (the v4 `Lighting` component replaces `setPipeline('Light2D')`);
-everything else draws exactly as before. The Game scene opts in the terrain layer, decor, enemies and the
-Player body (the photo head stays unlit on purpose). The lantern adds a warm point light
-(`scene.lights.addLight(x, y, radius, color, intensity, z)`) with a flicker tween. Lights have a `z` height
-in v4; the lantern uses `radius * 0.3`.
+On by default (WebGL only; `?lights=0` turns it off). The scene's `LightsManager` is enabled with the
+theme's `ambient` colour (`src/levels/themes.ts`: bright outdoors, dim in Rumble Cave and Spooky Castle).
+Only objects that call `setLighting(true)` are affected (the v4 `Lighting` component replaces
+`setPipeline('Light2D')`); everything else draws exactly as before. The Game scene opts in the terrain
+layer, decor, enemies and the Player body (the photo head stays unlit on purpose).
+
+Lanterns are placed with `l` in the ASCII maps (or a `lantern` point object in Tiled): a pixel lantern
+sprite with a glow filter and a warm point light (`scene.lights.addLight(x, y, radius, color, intensity, z)`)
+with a flicker tween. Lights have a `z` height in v4; the lantern uses `radius * 0.3`. `maxLights: 16` in
+the game config caps how many lights the renderer handles per camera at once.
 
 ### Loading a normal map alongside a spritesheet
 

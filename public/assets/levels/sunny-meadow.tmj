@@ -10,7 +10,7 @@
   "tilewidth": 18,
   "tileheight": 18,
   "nextlayerid": 3,
-  "nextobjectid": 54,
+  "nextobjectid": 62,
   "layers": [
     {
       "id": 1,
@@ -2005,6 +2005,18 @@
         },
         {
           "id": 35,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 108,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 36,
           "name": "",
           "type": "plant",
           "x": 126,
@@ -2016,7 +2028,7 @@
           "visible": true
         },
         {
-          "id": 36,
+          "id": 37,
           "name": "",
           "type": "fence",
           "x": 234,
@@ -2028,7 +2040,7 @@
           "visible": true
         },
         {
-          "id": 37,
+          "id": 38,
           "name": "",
           "type": "fence",
           "x": 252,
@@ -2040,7 +2052,7 @@
           "visible": true
         },
         {
-          "id": 38,
+          "id": 39,
           "name": "",
           "type": "fence",
           "x": 270,
@@ -2052,7 +2064,19 @@
           "visible": true
         },
         {
-          "id": 39,
+          "id": 40,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 288,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 41,
           "name": "walker",
           "type": "walker",
           "x": 360,
@@ -2064,7 +2088,19 @@
           "visible": true
         },
         {
-          "id": 40,
+          "id": 42,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 612,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 43,
           "name": "walker",
           "type": "walker",
           "x": 810,
@@ -2076,7 +2112,19 @@
           "visible": true
         },
         {
-          "id": 41,
+          "id": 44,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 900,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 45,
           "name": "checkpoint",
           "type": "checkpoint",
           "x": 1026,
@@ -2088,7 +2136,19 @@
           "visible": true
         },
         {
-          "id": 42,
+          "id": 46,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 1044,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 47,
           "name": "",
           "type": "plant",
           "x": 1062,
@@ -2100,7 +2160,7 @@
           "visible": true
         },
         {
-          "id": 43,
+          "id": 48,
           "name": "",
           "type": "spring",
           "x": 1116,
@@ -2112,7 +2172,7 @@
           "visible": true
         },
         {
-          "id": 44,
+          "id": 49,
           "name": "walker",
           "type": "walker",
           "x": 1188,
@@ -2124,7 +2184,7 @@
           "visible": true
         },
         {
-          "id": 45,
+          "id": 50,
           "name": "walker",
           "type": "walker",
           "x": 1350,
@@ -2136,7 +2196,19 @@
           "visible": true
         },
         {
-          "id": 46,
+          "id": 51,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 1404,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 52,
           "name": "walker",
           "type": "walker",
           "x": 1728,
@@ -2148,7 +2220,19 @@
           "visible": true
         },
         {
-          "id": 47,
+          "id": 53,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 1800,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 54,
           "name": "walker",
           "type": "walker",
           "x": 1872,
@@ -2160,7 +2244,7 @@
           "visible": true
         },
         {
-          "id": 48,
+          "id": 55,
           "name": "",
           "type": "fence",
           "x": 2052,
@@ -2172,7 +2256,7 @@
           "visible": true
         },
         {
-          "id": 49,
+          "id": 56,
           "name": "",
           "type": "fence",
           "x": 2070,
@@ -2184,7 +2268,7 @@
           "visible": true
         },
         {
-          "id": 50,
+          "id": 57,
           "name": "",
           "type": "fence",
           "x": 2088,
@@ -2196,7 +2280,7 @@
           "visible": true
         },
         {
-          "id": 51,
+          "id": 58,
           "name": "",
           "type": "plant",
           "x": 2142,
@@ -2208,7 +2292,7 @@
           "visible": true
         },
         {
-          "id": 52,
+          "id": 59,
           "name": "",
           "type": "sign",
           "x": 2178,
@@ -2220,7 +2304,19 @@
           "visible": true
         },
         {
-          "id": 53,
+          "id": 60,
+          "name": "lantern",
+          "type": "lantern",
+          "x": 2196,
+          "y": 162,
+          "width": 0,
+          "height": 0,
+          "point": true,
+          "rotation": 0,
+          "visible": true
+        },
+        {
+          "id": 61,
           "name": "",
           "type": "goal",
           "x": 2232,

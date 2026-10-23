@@ -19,6 +19,8 @@ const game = new Phaser.Game({
   backgroundColor: "#1d1b2a",
   pixelArt: true,
   roundPixels: true,
+  // Lanterns in view at once; Phaser only counts lights within camera range.
+  maxLights: 16,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

@@ -9,7 +9,7 @@
  *
  * Tiled map conventions: orthogonal, 18x18 tiles, uncompressed `data: number[]`.
  *   Tile layer "terrain": GID -> Terrain via embedded tileset tile property `terrain`.
- *   Object layer "objects": `type`/`class` is a ObjectKind. Tile objects (with gid) have origin
+ *   Object layer "objects": `type`/`class` is an ObjectKind (lanterns are point objects). Tile objects (with gid) have origin
  *   bottom-left; point/rect objects have origin top-left.
  */
 import { parseLevel, type DecorKind, type EnemyKind, type ParsedLevel, type Terrain } from "./parse";
@@ -19,12 +19,12 @@ const TILE = 18;
 const GID_MASK = 0x0fffffff;
 
 export type ObjectKind =
-  | "start" | "goal" | "checkpoint" | "diamond" | "heart" | "spring"
+  | "start" | "goal" | "checkpoint" | "diamond" | "heart" | "spring" | "lantern"
   | EnemyKind | DecorKind;
 
 const OBJECT_KINDS: readonly string[] = [
   "start", "goal", "checkpoint", "diamond", "heart", "spring",
-  "walker", "hopper", "spiky", "plant", "fence", "sign",
+  "walker", "hopper", "spiky", "plant", "fence", "sign", "lantern",
 ];
 
 export interface TiledProperty {
@@ -183,6 +183,7 @@ export function parseTiledLevel(map: TiledMap): ParsedLevel {
     enemies: [],
     springs: [],
     decor: [],
+    lanterns: [],
   };
 
   for (const o of objectLayer?.objects ?? []) {
@@ -202,6 +203,7 @@ export function parseTiledLevel(map: TiledMap): ParsedLevel {
       case "diamond": level.diamonds.push({ ...cell, id: `${x},${y}` }); break;
       case "heart": level.heartPickups.push(cell); break;
       case "spring": level.springs.push(cell); break;
+      case "lantern": level.lanterns.push(cell); break;
       case "walker":
       case "hopper":
       case "spiky": level.enemies.push({ ...cell, kind }); break;
@@ -292,6 +294,7 @@ export function levelFromRows(rows: string[]): TiledMap {
     ...level.springs.map((c) => ({ kind: "spring" as const, ...c })),
     ...level.enemies.map((c) => ({ kind: c.kind, x: c.x, y: c.y })),
     ...level.decor.map((c) => ({ kind: c.kind, x: c.x, y: c.y })),
+    ...level.lanterns.map((c) => ({ kind: "lantern" as const, ...c })),
   ];
   items.sort((a, b) => a.y - b.y || a.x - b.x);
   for (const it of items) add(it.kind, it);

@@ -37,7 +37,7 @@ faster and faster, ramps, gaps, rocks and logs, 3 Hearts, top-5 highscores with 
 
 ASCII maps in `src/levels/levels.ts`, 12+ rows tall (the camera scrolls up for taller ones). Legend in `src/levels/parse.ts`
 (`#` ground, `B` block, `=` one-way platform, `~` cloud, `j` spring, `P` start, `G` Goal Flag, `c` Checkpoint,
-`d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign).
+`d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign, `l` lantern).
 `npm test` checks every level (things stand on ground, start + goal exist).
 
 A level can also be a Tiled map: set `tiled: "assets/levels/<name>.tmj"` on its entry (Sunny Meadow is one);
