@@ -8,7 +8,9 @@ import { THEMES, type Theme } from "../levels/themes";
 import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
-import { applyCameraFx } from "../fx/filters";
+import { FX } from "../fx/flags";
+import { addGlow, applyCameraFx } from "../fx/filters";
+import { addLantern, enableLights, litIfEnabled } from "../fx/lights";
 import { createParallax, type ParallaxHandle } from "../fx/parallax";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
@@ -54,6 +56,8 @@ export class Game extends Phaser.Scene {
   private lastSafe = { x: 0, y: 0 };
   private phase: Phase = "playing";
   private parallax!: ParallaxHandle;
+  /** Light2D is on for this Level (FX.lights flag and WebGL). */
+  private lit = false;
 
   constructor() {
     super(SCENES.game);
@@ -76,8 +80,9 @@ export class Game extends Phaser.Scene {
 
     this.physics.world.gravity.y = PHYSICS.gravity;
     this.physics.world.setBounds(0, 0, worldW, worldH + 200, true, true, false, false);
+    this.lit = enableLights(this, FX.lights);
     this.createBackdrop(worldW, worldH);
-    const layer = this.createTerrain();
+    const layer = litIfEnabled(this.createTerrain(), this.lit);
     this.createDecor();
 
     const diamonds = this.physics.add.staticGroup();
@@ -121,11 +126,14 @@ export class Game extends Phaser.Scene {
     const springCells = new Set(this.level.springs.map((j) => `${j.x},${j.y}`));
     const isSpring = (wx: number, wy: number) => springCells.has(`${Math.floor(wx / TILE)},${Math.floor(wy / TILE)}`);
     for (const e of this.level.enemies) {
-      this.enemies.add(new Enemy(this, cx(e), (e.y + 1) * TILE, e.kind, isSolid, isSpring));
+      this.enemies.add(litIfEnabled(new Enemy(this, cx(e), (e.y + 1) * TILE, e.kind, isSolid, isSpring), this.lit));
     }
 
     const spawn = this.checkpoint ?? this.level.start;
-    this.player = new Player(this, cx(spawn), (spawn.y + 1) * TILE, this.data_.characterId);
+    this.player = litIfEnabled(new Player(this, cx(spawn), (spawn.y + 1) * TILE, this.data_.characterId), this.lit);
+    // Test object for Light2D: a lantern two tiles right of the start, glowing even with lights off.
+    const lantern = addLantern(this, cx({ x: this.level.start.x + 2, y: 0 }), (this.level.start.y + 1) * TILE, { enabled: this.lit });
+    addGlow(lantern.sprite, 0xffb060, 1.5);
     this.lastSafe = { x: this.player.x, y: this.player.y };
 
     this.physics.add.collider(this.player, layer);
@@ -228,7 +236,7 @@ export class Game extends Phaser.Scene {
   private createDecor(): void {
     for (const d of this.level.decor) {
       const frame = d.kind === "fence" ? FRAME.fence : d.kind === "sign" ? FRAME.sign : this.theme.decor[d.x % this.theme.decor.length];
-      this.add.image(cx(d), d.y * TILE + TILE / 2, "tiles", frame).setDepth(0);
+      litIfEnabled(this.add.image(cx(d), d.y * TILE + TILE / 2, "tiles", frame).setDepth(0), this.lit);
     }
   }
 
