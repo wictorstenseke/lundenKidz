@@ -198,8 +198,10 @@ export class Runner extends Phaser.Scene {
     this.player.anims.timeScale = speed / RUN.startSpeed;
     this.rideRamps(time);
     this.wheelie(time);
-    this.tilt(dt);
+    // Judge the touchdown before the ground tilt eases the bike upright, or a clean flip (-360)
+    // gets pulled 20% towards 0 on that first frame and reads as a crash.
     this.trackLanding(time);
+    this.tilt(dt);
     this.floorCollider.active = !this.gapAt(this.player.body.center.x, GAP_GRACE);
     if (this.player.y > WORLD_H + 30) this.fallIntoGap();
 
