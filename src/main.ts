@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH } from "./config";
+import { GAME_HEIGHT, GAME_WIDTH, ZOOM } from "./config";
 import { Boot } from "./scenes/Boot";
 import { CharacterSelect } from "./scenes/CharacterSelect";
 import { Game } from "./scenes/Game";
@@ -18,9 +18,14 @@ const game = new Phaser.Game({
   height: GAME_HEIGHT,
   backgroundColor: "#1d1b2a",
   pixelArt: true,
-  // Rounding each sprite separately makes them twitch against a smoothly following camera.
-  roundPixels: false,
-  scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+  roundPixels: true,
+  scale: {
+    mode: Phaser.Scale.FIT,
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // The canvas only takes sizes that are whole multiples of the 384x216 world view, so every
+    // world pixel is drawn as an exact square of screen pixels (no uneven pixel columns).
+    snap: { width: GAME_WIDTH / ZOOM, height: GAME_HEIGHT / ZOOM },
+  },
   input: { gamepad: true },
   // Step physics with the real frame time so motion stays smooth on 120 Hz screens too.
   physics: { default: "arcade", arcade: { debug: false, fixedStep: false } },
