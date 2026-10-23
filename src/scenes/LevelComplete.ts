@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { DIAMOND_TEXTURE } from "../objects/Diamond";
 import { SCENES } from "../config";
 import { Controls } from "../input/controls";
 import { LEVELS } from "../levels/levels";
@@ -30,7 +31,7 @@ export class LevelComplete extends Phaser.Scene {
     const head = this.add.image(width / 2, 210, `head-${data.characterId}`);
     this.tweens.add({ targets: head, angle: { from: -8, to: 8 }, duration: 300, yoyo: true, repeat: -1 });
 
-    this.add.image(width / 2 - 110, 300, "tiles", 67).setScale(3);
+    this.add.image(width / 2 - 110, 300, DIAMOND_TEXTURE).setScale(3);
     text(this, width / 2 + 20, 302, `${data.diamonds} / ${data.totalDiamonds}`, 20, "#9ad8ff");
     text(this, width / 2, 345, `Total diamonds: ${session.progress.diamonds}`, 12, "#9ad8ff");
 

@@ -10,12 +10,15 @@ interface KindSpec {
   offset: [number, number];
   /** Milliseconds between hops; 0 never hops. */
   hopEvery: number;
+  /** Horizontal stretch of the sprite (the body scales with it). */
+  scaleX?: number;
 }
 
 // Frames in the Kenney character sheet (24px).
 const KINDS: Record<EnemyKind, KindSpec> = {
   walker: { frames: [18, 19], squashFrame: 20, speed: 38, stompable: true, size: [14, 12], offset: [5, 12], hopEvery: 0 },
-  hopper: { frames: [13, 14], squashFrame: 13, speed: 22, stompable: true, size: [10, 14], offset: [7, 10], hopEvery: 1600 },
+  // The hopper frame has 4 empty rows under its feet, so its body ends 4px above the frame bottom.
+  hopper: { frames: [13, 14], squashFrame: 13, speed: 22, stompable: true, size: [10, 14], offset: [7, 6], hopEvery: 1600, scaleX: 1.4 },
   spiky: { frames: [15, 16], squashFrame: 15, speed: 28, stompable: false, size: [16, 18], offset: [4, 6], hopEvery: 0 },
 };
 
@@ -44,7 +47,7 @@ export class Enemy extends Phaser.Physics.Arcade.Sprite {
     this.stompable = this.spec.stompable;
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    this.setOrigin(0.5, 1).setDepth(5);
+    this.setOrigin(0.5, 1).setDepth(5).setScale(this.spec.scaleX ?? 1, 1);
     this.body.setSize(...this.spec.size).setOffset(...this.spec.offset);
     this.nextHopAt = scene.time.now + this.spec.hopEvery * Math.random();
 

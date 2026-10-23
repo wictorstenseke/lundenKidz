@@ -8,6 +8,7 @@ import { THEMES, type Theme } from "../levels/themes";
 import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
+import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
 import { Player } from "../objects/Player";
 import { addDiamond, markLevelComplete, session } from "../session";
@@ -36,7 +37,7 @@ export interface HudState {
 
 type Phase = "playing" | "dying" | "won";
 
-const FRAME = { diamond: 67, heart: 44, flag: [111, 112], pole: 131, spring: [107, 108], fence: 106, sign: 85 };
+const FRAME = { heart: 44, flag: [111, 112], pole: 131, spring: [107, 108], fence: 106, sign: 85 };
 
 export class Game extends Phaser.Scene {
   private data_!: GameData;
@@ -79,10 +80,10 @@ export class Game extends Phaser.Scene {
     const diamonds = this.physics.add.staticGroup();
     for (const d of this.level.diamonds) {
       if (this.collected.has(d.id)) continue;
-      const img = diamonds.create(cx(d), d.y * TILE + TILE / 2, "tiles", FRAME.diamond) as Phaser.Physics.Arcade.Image;
+      const img = diamonds.create(cx(d), d.y * TILE + TILE / 2, DIAMOND_TEXTURE) as Phaser.Physics.Arcade.Image;
       img.setData("id", d.id);
       img.body!.setSize(10, 10);
-      this.tweens.add({ targets: img, scaleX: 0.6, duration: 500, yoyo: true, repeat: -1, ease: "Sine.inOut", delay: d.x * 40 });
+      attachDiamondBling(this, img, d.x * 40);
     }
 
     const hearts = this.physics.add.staticGroup();
@@ -277,7 +278,7 @@ export class Game extends Phaser.Scene {
       enemy.squash();
       this.player.bounce(this.controls.held("jump"));
       audio.sfx("stomp");
-      this.cameras.main.shake(60, 0.003);
+      this.cameras.main.shake(40, 0.0012);
     } else {
       enemy.turnAround(this.player.x);
       this.hurt(enemy.x);
@@ -337,6 +338,7 @@ export class Game extends Phaser.Scene {
 
   private takeDiamond(img: Phaser.Physics.Arcade.Image): void {
     this.collected.add(img.getData("id"));
+    burstDiamond(this, img.x, img.y, img.depth);
     img.destroy();
     const { total, heartEarned } = collectDiamond(session.progress.diamonds);
     addDiamond(total);

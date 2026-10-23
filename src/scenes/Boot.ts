@@ -3,6 +3,7 @@ import { CHARACTERS, getOutfit, type CharacterDef } from "../characters";
 import type { Outfit } from "../logic/outfits";
 import { FONT, SCENES } from "../config";
 import { THEMES } from "../levels/themes";
+import { makeDiamondTextures } from "../objects/Diamond";
 
 export const HEAD_SIZE = 96;
 export const BODY_W = 16;
@@ -34,6 +35,7 @@ export class Boot extends Phaser.Scene {
     makeBackdrops(this);
     makeCloud(this);
     makeExtrudedTiles(this);
+    makeDiamondTextures(this);
     this.scene.start(SCENES.title);
   }
 }

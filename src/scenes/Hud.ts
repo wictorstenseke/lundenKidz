@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { DIAMOND_TEXTURE } from "../objects/Diamond";
 import { SCENES } from "../config";
 import { text } from "../ui";
 import type { HudState } from "./Game";
@@ -22,7 +23,7 @@ export class Hud extends Phaser.Scene {
     this.scoreText = undefined;
     this.shownLevel = undefined;
     const { width } = this.scale;
-    this.add.image(width - 150, 32, "tiles", 67).setScale(SCALE);
+    this.add.image(width - 150, 32, DIAMOND_TEXTURE).setScale(SCALE);
     this.diamondText = text(this, width - 120, 34, "0", 20).setOrigin(0, 0.5);
 
     // Game publishes its state in the registry; it may have done so before this scene started.

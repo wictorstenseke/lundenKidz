@@ -6,6 +6,7 @@ import type { EnemyKind } from "../levels/parse";
 import { THEMES } from "../levels/themes";
 import { resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
+import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { runScore } from "../logic/highscores";
 import {
   airBonus,
@@ -54,7 +55,7 @@ const SKY_ABOVE = 200;
 const CAMERA_BELOW = 40;
 /** Gaps are forgiving: the bike only drops once its centre is this far past an edge. */
 const GAP_GRACE = 6;
-const FRAME = { rock: 68, diamond: 67, heart: 44 };
+const FRAME = { rock: 68, heart: 44 };
 /** Dirt trail tiles: [single, left end, middle, right end]. */
 const TRAIL_TOP = [60, 61, 62, 63];
 const TRAIL_FILL = [120, 121, 122, 123];
@@ -379,7 +380,7 @@ export class Runner extends Phaser.Scene {
     const runOut = rampRunOut(speed);
     const hp = this.player.health;
     if (hp.hearts < hp.max && this.rnd.frac() < 0.1) {
-      this.pickup(x, FLOOR - 40, FRAME.heart, "heart");
+      this.pickup(x, FLOOR - 40, "heart");
       return TILE;
     }
     const pattern: Pattern = this.rnd.pick(availablePatterns(this.elapsed));
@@ -495,14 +496,17 @@ export class Runner extends Phaser.Scene {
   private diamondArc(x: number, baseY: number, width: number, lift: number): void {
     for (let i = 0; i < 5; i++) {
       const y = baseY - Math.sin((i / 4) * Math.PI) * lift;
-      this.pickup(x + (i * width) / 4, y, FRAME.diamond, "diamond");
+      this.pickup(x + (i * width) / 4, y, "diamond");
     }
   }
 
-  private pickup(x: number, y: number, frame: number, kind: "diamond" | "heart"): void {
-    const img = this.pickups.create(x, y, "tiles", frame) as Phaser.Physics.Arcade.Image;
+  private pickup(x: number, y: number, kind: "diamond" | "heart"): void {
+    const img = (
+      kind === "diamond" ? this.pickups.create(x, y, DIAMOND_TEXTURE) : this.pickups.create(x, y, "tiles", FRAME.heart)
+    ) as Phaser.Physics.Arcade.Image;
     img.setData("kind", kind).setDepth(5);
     (img.body as Phaser.Physics.Arcade.StaticBody).setSize(10, 10);
+    if (kind === "diamond") attachDiamondBling(this, img);
   }
 
   private cleanUp(leftEdge: number): void {
@@ -563,6 +567,7 @@ export class Runner extends Phaser.Scene {
       addDiamond(total);
       audio.sfx("diamond");
       if (heartEarned && this.player.health.heal()) audio.sfx("heart");
+      burstDiamond(this, item.x, item.y, item.depth);
     }
     item.destroy();
     this.emitHud();
