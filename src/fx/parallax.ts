@@ -12,8 +12,6 @@ type Band = (typeof BANDS)[number];
 const FACTORS: Record<Band, number> = { sky: 0.1, far: 0.25, near: 0.45 };
 /** Sky < far < near; background clouds should sit between sky and far (-12.5), floor-ish rect shares near's depth. */
 const DEPTHS: Record<Band, number> = { sky: -13, far: -12, near: -11 };
-/** How far above the world the sky band is tiled, so tall Levels never show a gap. */
-const SKY_EXTRA_UP = 600;
 const FLOOR_H = 600;
 
 export interface ParallaxHandle {
@@ -55,8 +53,8 @@ export function createParallax(scene: Phaser.Scene, theme: Theme, _worldW: numbe
   const stripTop = worldH - STRIP_BOTTOM_OFFSET;
   const nearTop = stripTop + 2 * BAND_H;
   const farTop = stripTop + BAND_H;
-  // Sky tiles vertically in whole 24px rows; its bottom edge meets the far band at farTop.
-  const skyRows = Math.ceil((SKY_EXTRA_UP + stripTop) / BAND_H) + 1;
+  // One sky row, like the old strip: above it the camera background shows, so tall Levels keep their sky fade.
+  const skyRows = 1;
   const skyTop = farTop - skyRows * BAND_H;
 
   const make = (band: Band, y: number, h: number): Phaser.GameObjects.TileSprite =>

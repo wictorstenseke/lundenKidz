@@ -20,3 +20,10 @@ describe.each(LEVELS.map((l, i) => [i + 1, l] as const))("Level %i", (_n, def) =
 
   it("has at least 15 Diamonds", () => expect(level.diamonds.length).toBeGreaterThanOrEqual(15));
 });
+
+describe("Tiled assets", () => {
+  const files = Object.keys(import.meta.glob("/public/assets/**/*.tmj", { query: "?raw", eager: true }));
+  it.each(LEVELS.filter((l) => l.tiled).map((l) => [l.name, l.tiled!] as const))("%s has its .tmj on disk", (_n, url) => {
+    expect(files).toContain(`/public/${url}`);
+  });
+});

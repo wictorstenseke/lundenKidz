@@ -4,6 +4,8 @@ export interface LevelDef {
   name: string;
   theme: ThemeId;
   rows: string[];
+  /** Optional Tiled .tmj asset URL (relative to the Vite base); parsed instead of `rows` when present. */
+  tiled?: string;
 }
 
 // Legend: see parse.ts. At least 12 rows tall; the ground sits on the bottom two rows.
@@ -11,6 +13,7 @@ export const LEVELS: LevelDef[] = [
   {
     name: "Sunny Meadow",
     theme: "grass",
+    tiled: "assets/levels/sunny-meadow.tmj",
     rows: [
       "",
       "                                                             ddddddh",
