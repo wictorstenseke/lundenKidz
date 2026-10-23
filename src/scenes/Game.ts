@@ -218,7 +218,8 @@ export class Game extends Phaser.Scene {
     }
     const map = this.make.tilemap({ data, tileWidth: TILE, tileHeight: TILE });
     const tileset = map.addTilesetImage("tiles", "tiles-extruded", TILE, TILE, TILE_MARGIN, TILE_SPACING)!;
-    const layer = map.createLayer(0, tileset, 0, 0)!;
+    // v4 can also return a TilemapGPULayer; we ask for the classic layer so per-tile collision/tint keep working.
+    const layer = map.createLayer(0, tileset, 0, 0, false) as Phaser.Tilemaps.TilemapLayer;
     layer.forEachTile((tile) => {
       const t = terrain[tile.y][tile.x];
       if (t === "ground" || t === "block") tile.setCollision(true, true, true, true);
