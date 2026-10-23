@@ -6,6 +6,7 @@ import type { EnemyKind } from "../levels/parse";
 import { THEMES } from "../levels/themes";
 import { resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
+import { applyCameraFx } from "../fx/filters";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { runScore } from "../logic/highscores";
 import {
@@ -166,6 +167,7 @@ export class Runner extends Phaser.Scene {
     // The camera may rise above the world for big jumps; on the ground the bottom bound holds it still.
     cam.setZoom(ZOOM).setBounds(-1000, -SKY_ABOVE, 1e8, WORLD_H + SKY_ABOVE).setBackgroundColor(theme.sky);
     cam.startFollow(this.player, false, 1, 0.12, -LOOK_AHEAD, -CAMERA_BELOW);
+    applyCameraFx(cam);
 
     this.controls = new Controls(this);
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());

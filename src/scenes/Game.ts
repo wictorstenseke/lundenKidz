@@ -8,6 +8,7 @@ import { THEMES, type Theme } from "../levels/themes";
 import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
+import { applyCameraFx } from "../fx/filters";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
 import { Player } from "../objects/Player";
@@ -138,6 +139,7 @@ export class Game extends Phaser.Scene {
     cam.setZoom(ZOOM).setBounds(0, 0, worldW, worldH).setBackgroundColor(this.theme.sky);
     cam.startFollow(this.player, false, 0.12, 0.12, 0, 20);
     cam.setDeadzone(24, 40);
+    applyCameraFx(cam);
 
     this.controls = new Controls(this);
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());
