@@ -1,0 +1,51 @@
+# lundenKidz
+
+SNES-style side-scroller starring three kids. Browser game: Phaser 3 + TypeScript + Vite.
+
+## Run
+
+```sh
+npm install
+npm run dev      # http://localhost:5173
+npm test         # logic + level checks
+npm run build    # static build in dist/
+```
+
+## Controls
+
+| Action | Keyboard | Gamepad |
+| --- | --- | --- |
+| Move | Arrows / A D | D-pad / left stick |
+| Jump (hold = higher) | Space / Up / W / Z | A or B |
+| Pause | Esc / P | Start |
+| Confirm | Enter / Space | A / Start |
+| Mute | M | |
+| Wheelie (MTB Trail, on ground) | Left / A | D-pad left / stick |
+| Backflip / frontflip (MTB Trail, in air) | Left / Right | D-pad / stick |
+
+## Your kids
+
+- Photos: `public/kids/ellen.png`, `emil.png`, `olle.png` (cut-out heads, transparent PNG; the game adds outline, shadow and 3D shading).
+- Names and shirt colours: `src/characters.ts`.
+
+## Levels
+
+Five levels: Sunny Meadow → Rumble Cave → Snowy Hills (ice) → Cloud Climb (vertical) → Spooky Castle.
+
+Plus **MTB Trail** (title menu, always open): the kid rides a mountain bike on their own, jump only,
+faster and faster, ramps, gaps, rocks and logs, 3 Hearts, top-5 highscores with the kid's face. Pacing in `src/logic/runner.ts`, scene in `src/scenes/Runner.ts`.
+
+ASCII maps in `src/levels/levels.ts`, 12+ rows tall (the camera scrolls up for taller ones). Legend in `src/levels/parse.ts`
+(`#` ground, `B` block, `=` one-way platform, `~` cloud, `j` spring, `P` start, `G` Goal Flag, `c` Checkpoint,
+`d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign).
+`npm test` checks every level (things stand on ground, start + goal exist).
+
+## Where things live
+
+- `CONTEXT.md` — game vocabulary (Heart, Stomp, Checkpoint …)
+- `docs/open-questions.md` — undecided design questions + defaults used meanwhile
+- `src/logic/` — pure rules (Hearts, Stomp, Diamonds, saved progress), unit tested
+- `src/scenes/` — Title, Character Select, Game, HUD, Pause, Level Complete, Victory
+- `src/audio/` — synthesised chiptune music + sound effects (no audio files)
+
+Art: [Kenney Pixel Platformer](https://kenney.nl/assets/pixel-platformer) (CC0). Font: Press Start 2P (OFL).
