@@ -9,6 +9,7 @@ import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
 import { applyCameraFx } from "../fx/filters";
+import { createParallax, type ParallaxHandle } from "../fx/parallax";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
 import { Player } from "../objects/Player";
@@ -52,6 +53,7 @@ export class Game extends Phaser.Scene {
   private checkpointFlags: { cell: Cell; flag: Phaser.GameObjects.Sprite }[] = [];
   private lastSafe = { x: 0, y: 0 };
   private phase: Phase = "playing";
+  private parallax!: ParallaxHandle;
 
   constructor() {
     super(SCENES.game);
@@ -151,6 +153,7 @@ export class Game extends Phaser.Scene {
   update(time: number, delta: number): void {
     this.controls.update();
     handleGlobalKeys(this.controls);
+    this.parallax.update();
     if (this.phase !== "playing") return;
 
     if (this.controls.pressed("pause")) {
@@ -169,17 +172,8 @@ export class Game extends Phaser.Scene {
   // --- Level building ---------------------------------------------------
 
   private createBackdrop(worldW: number, worldH: number): void {
-    const parallax = 0.35;
-    // Wide enough to cover the view at any scroll, accounting for zoom offset.
-    const width = worldW * parallax + 1200;
-    const stripTop = worldH - 100;
-    this.add
-      .tileSprite(-600, stripTop, width, 72, `backdrop-${this.theme.id}`)
-      .setOrigin(0)
-      .setScrollFactor(parallax, 1)
-      .setDepth(-10)
-      .setTint(this.theme.backdrop.tint);
-    this.add.rectangle(-600, stripTop + 72, width, 400, this.theme.backdrop.floor).setOrigin(0).setScrollFactor(parallax, 1).setDepth(-10);
+    // Sky, far hills and near hills drift at different speeds; the strips follow the camera each update().
+    this.parallax = createParallax(this, this.theme, worldW, worldH);
 
     if (!this.theme.clouds) return;
     // Scattered over the area the camera can see at this parallax, seeded per Level so they don't jump on restart.
@@ -192,7 +186,7 @@ export class Game extends Phaser.Scene {
       this.add
         .image(x, y, "bg-cloud")
         .setScrollFactor(cloudParallax, 1)
-        .setDepth(-11)
+        .setDepth(-12.5)
         .setAlpha(rnd.realInRange(0.3, 0.55))
         .setScale(rnd.pick([1, 1, 2]));
     }
