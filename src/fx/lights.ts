@@ -142,8 +142,29 @@ function makeLanternTexture(scene: Phaser.Scene, kind: LanternKind): void {
 
 export interface Lantern {
   sprite: Phaser.GameObjects.Image;
+  /** Soft additive halo behind the glass; absent when `halo` is off. */
+  halo?: Phaser.GameObjects.Image;
   light?: Phaser.GameObjects.Light;
   destroy(): void;
+}
+
+const HALO_TEXTURE = "lantern-halo";
+const HALO_SIZE = 48;
+
+/** Radial gradient, linear-filtered so it stays smooth at zoom 3 (the Glow filter boxes small sprites). */
+function makeHaloTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists(HALO_TEXTURE)) return;
+  const canvas = scene.textures.createCanvas(HALO_TEXTURE, HALO_SIZE, HALO_SIZE)!;
+  const ctx = canvas.getContext();
+  const c = HALO_SIZE / 2;
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+  g.addColorStop(0, "rgba(255,255,255,1)");
+  g.addColorStop(0.25, "rgba(255,255,255,0.5)");
+  g.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, HALO_SIZE, HALO_SIZE);
+  canvas.refresh();
+  canvas.setFilter(Phaser.Textures.FilterMode.LINEAR);
 }
 
 /**
@@ -154,11 +175,24 @@ export function addLantern(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  opts: { kind?: LanternKind; color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean } = {},
+  opts: { kind?: LanternKind; color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean; halo?: boolean } = {},
 ): Lantern {
   const { kind = "lantern", color = 0xffb060, radius = kind === "post" ? 90 : 70, intensity = 1.2, flicker = true, enabled = true } = opts;
   makeLanternTexture(scene, kind);
   const sprite = scene.add.image(x, y, SHAPES[kind].key).setOrigin(0.5, 1).setDepth(1);
+
+  let halo: Phaser.GameObjects.Image | undefined;
+  if (opts.halo ?? true) {
+    makeHaloTexture(scene);
+    halo = scene.add
+      .image(x, y + GLASS_DY[kind], HALO_TEXTURE)
+      .setDepth(0.9)
+      .setTint(color)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(0.3)
+      .setScale(kind === "post" ? 0.8 : 0.6);
+    scene.tweens.add({ targets: halo, alpha: 0.42, duration: 420, yoyo: true, repeat: -1, ease: "Sine.inOut", delay: (x * 7) % 420 });
+  }
 
   let light: Phaser.GameObjects.Light | undefined;
   let tween: Phaser.Tweens.Tween | undefined;
@@ -184,6 +218,7 @@ export function addLantern(
     destroyed = true;
     tween?.stop();
     if (light) scene.lights.removeLight(light);
+    halo?.destroy();
     sprite.destroy();
   };
   sprite.once(Phaser.GameObjects.Events.DESTROY, () => {
@@ -191,6 +226,7 @@ export function addLantern(
     destroyed = true;
     tween?.stop();
     if (light) scene.lights.removeLight(light);
+    halo?.destroy();
   });
-  return { sprite, light, destroy };
+  return { sprite, halo, light, destroy };
 }

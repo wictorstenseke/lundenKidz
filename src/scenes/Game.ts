@@ -10,7 +10,7 @@ import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
 import { FX } from "../fx/flags";
-import { addGlow, applyCameraFx } from "../fx/filters";
+import { applyCameraFx } from "../fx/filters";
 import { addLantern, enableLights, litIfEnabled } from "../fx/lights";
 import { ambientLeaves, itemSparkle, landingDust } from "../fx/particles";
 import { createParallax, type ParallaxHandle } from "../fx/parallax";
@@ -143,8 +143,7 @@ export class Game extends Phaser.Scene {
     const spawn = this.checkpoint ?? this.level.start;
     this.player = litIfEnabled(new Player(this, cx(spawn), (spawn.y + 1) * TILE, this.data_.characterId), this.lit);
     for (const l of this.level.lanterns) {
-      const lantern = addLantern(this, cx(l), (l.y + 1) * TILE, { kind: l.kind, enabled: this.lit });
-      addGlow(lantern.sprite, 0xffb060, 1.5);
+      addLantern(this, cx(l), (l.y + 1) * TILE, { kind: l.kind, enabled: this.lit, halo: FX.glow });
     }
     this.lastSafe = { x: this.player.x, y: this.player.y };
 

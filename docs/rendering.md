@@ -31,7 +31,7 @@ All effects are in `src/fx/`. `src/fx/flags.ts` reads the URL once at startup:
 | --- | --- | --- | --- |
 | `bloom` | on | `?bloom=0` | Bright highlights (clouds, glints, diamond halo) bleed softly. Camera internal filter: threshold → blur → ADD, same recipe as `Phaser.Actions.AddEffectBloom`. |
 | `vignette` | on | `?vignette=0` | Gentle darkening towards the screen edges. Camera external filter. |
-| `glow` | on | `?glow=0` | Per-object glow filter (`addGlow`), used on the lantern. |
+| `glow` | on | `?glow=0` | Soft additive halo sprite behind each lantern / light post glass. (`addGlow` in filters.ts is the per-object Glow filter; it boxes tiny sprites, so lanterns use the halo instead.) |
 | `lights` | on | `?lights=0` | Light2D: per-theme ambient darkens opted-in objects, lantern point lights brighten them. |
 
 `?fx=0` turns everything off first, then per-flag params still apply (`?fx=0&bloom=1` is bloom only).
@@ -67,7 +67,7 @@ cam.filters.external.list[0].active = false; // vignette
 Where they are wired in:
 
 - `Game.create`: `enableLights` → `createBackdrop` (parallax + clouds) → terrain (`litIfEnabled`) → decor,
-  enemies, player (`litIfEnabled`) → one lantern per `l` cell (`addLantern` + `addGlow`) →
+  enemies, player (`litIfEnabled`) → one lantern / post per `l` / `L` cell (`addLantern`, halo if `FX.glow`) →
   `applyCameraFx` → `ambientLeaves` (leaves in the meadow, snowflakes on Snowy Hills).
 - `Game.update`: `parallax.update()` every frame; `trackLanding()` puffs dust when the Player touches down
   faster than 120 px/s; `takeHeart` sparkles.
@@ -162,6 +162,6 @@ that `sunny-meadow.tmj` matches the ASCII Sunny Meadow.
    ```
 4. **Place** it with `setOrigin(0.5, 1)` at the ground line and an integer position; use `setDepth` (terrain
    0–5, Player 10, head 11). Opt into lights with `litIfEnabled(sprite, this.lit)` and into a glow with
-   `addGlow(sprite, color)` if it is a pickup or lantern.
+   a soft halo image (see `makeHaloTexture` in `src/fx/lights.ts`) if it should glow; the Glow filter boxes small sprites.
 5. Avoid fractional scales and rotations on pixel sprites; `roundPixels` only rounds unscaled, axis-aligned
    objects, so a scaled sprite shimmers.
