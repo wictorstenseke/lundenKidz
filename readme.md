@@ -1,6 +1,6 @@
 # lundenKidz
 
-SNES-style side-scroller starring three kids. Browser game: Phaser 3 + TypeScript + Vite.
+SNES-style side-scroller starring three kids. Browser game: Phaser 4 + TypeScript + Vite.
 
 ## Run
 
@@ -40,10 +40,15 @@ ASCII maps in `src/levels/levels.ts`, 12+ rows tall (the camera scrolls up for t
 `d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign).
 `npm test` checks every level (things stand on ground, start + goal exist).
 
+A level can also be a Tiled map: set `tiled: "assets/levels/<name>.tmj"` on its entry (Sunny Meadow is one);
+the ASCII rows stay as fallback. See `docs/rendering.md` for the format and the generator script.
+
 ## Where things live
 
 - `CONTEXT.md` — game vocabulary (Heart, Stomp, Checkpoint …)
 - `docs/open-questions.md` — undecided design questions + defaults used meanwhile
+- `docs/rendering.md` — Phaser 4 rendering: effect flags (`?bloom=0`, `?lights=1` …), parallax, particles, Light2D, Tiled levels, adding a sprite
+- `src/fx/` — camera filters, parallax, particles, lights
 - `src/logic/` — pure rules (Hearts, Stomp, Diamonds, saved progress), unit tested
 - `src/scenes/` — Title, Character Select, Game, HUD, Pause, Level Complete, Victory
 - `src/audio/` — synthesised chiptune music + sound effects (no audio files)
