@@ -2,8 +2,12 @@ import Phaser from "phaser";
 import { CHARACTERS, getOutfit, type CharacterDef } from "../characters";
 import type { Outfit } from "../logic/outfits";
 import { FONT, SCENES } from "../config";
+import { LEVELS } from "../levels/levels";
 import { THEMES } from "../levels/themes";
 import { makeDiamondTextures } from "../objects/Diamond";
+
+/** Cache key of a Level's Tiled JSON, when it has one. */
+export const levelJsonKey = (levelIndex: number): string => `level-${levelIndex}`;
 
 export const HEAD_SIZE = 96;
 export const BODY_W = 16;
@@ -23,6 +27,8 @@ export class Boot extends Phaser.Scene {
     this.load.spritesheet("chars", "assets/kenney/characters.png", { frameWidth: 24, frameHeight: 24 });
     this.load.image("backdrops", "assets/kenney/backgrounds.png");
     for (const c of CHARACTERS) this.load.image(`photo-${c.id}`, c.photo);
+    // Tiled Levels; a Level whose file fails to load falls back to its ASCII rows in Game.
+    for (const [i, def] of LEVELS.entries()) if (def.tiled) this.load.json(levelJsonKey(i), def.tiled);
   }
 
   async create(): Promise<void> {

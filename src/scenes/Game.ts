@@ -4,6 +4,7 @@ import { PHYSICS, SCENES, TILE, ZOOM } from "../config";
 import { Controls } from "../input/controls";
 import { LEVELS } from "../levels/levels";
 import { parseLevel, type Cell, type ParsedLevel } from "../levels/parse";
+import { parseTiledLevel, type TiledMap } from "../levels/tiled";
 import { THEMES, type Theme } from "../levels/themes";
 import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
@@ -17,7 +18,7 @@ import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Di
 import { Enemy } from "../objects/Enemy";
 import { Player } from "../objects/Player";
 import { addDiamond, markLevelComplete, session } from "../session";
-import { TILE_MARGIN, TILE_SPACING } from "./Boot";
+import { levelJsonKey, TILE_MARGIN, TILE_SPACING } from "./Boot";
 import type { PauseData } from "./Pause";
 import { handleGlobalKeys } from "../ui";
 
@@ -82,7 +83,8 @@ export class Game extends Phaser.Scene {
 
   create(): void {
     const def = LEVELS[this.data_.levelIndex];
-    this.level = parseLevel(def.rows);
+    const tiled = def.tiled ? (this.cache.json.get(levelJsonKey(this.data_.levelIndex)) as TiledMap | undefined) : undefined;
+    this.level = tiled ? parseTiledLevel(tiled) : parseLevel(def.rows);
     this.theme = THEMES[def.theme];
     const worldW = this.level.width * TILE;
     const worldH = this.level.height * TILE;
