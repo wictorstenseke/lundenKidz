@@ -22,6 +22,7 @@ const BUTTONS: Button[] = [
 ];
 
 const CSS = `
+#touch[hidden] { display: none; }
 #touch { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 #touch button {
   position: absolute; pointer-events: auto; touch-action: none; user-select: none; -webkit-user-select: none;
@@ -72,4 +73,8 @@ export function installTouchControls(): void {
   }
   document.head.append(style);
   document.body.append(root);
+  // A paired controller takes over; the buttons come back if it disconnects.
+  const sync = () => (root.hidden = [...navigator.getGamepads()].some((g) => g?.connected));
+  addEventListener("gamepadconnected", sync);
+  addEventListener("gamepaddisconnected", sync);
 }
