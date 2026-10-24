@@ -87,11 +87,16 @@ function recolour(px: Uint8ClampedArray, i: number, base: number, target: number
   px[i + 2] = Math.min(255, Math.round(b * ratio));
 }
 
-/** Copies `src` into a new canvas texture, dressing every frame in the outfit. */
+/**
+ * Copies `src` into the canvas texture `key`, dressing every frame in the outfit. An existing texture
+ * is repainted in place rather than replaced: sprites already wearing it (and the animations cut from
+ * it) keep their frames, where destroying it would leave them pointing at nothing and crash the game.
+ */
 function dressedCanvas(scene: Phaser.Scene, key: string, src: HTMLImageElement, sy: number, w: number, h: number, kind: SpriteKind, outfit: Outfit, limits: RowLimits): Phaser.Textures.CanvasTexture {
-  if (scene.textures.exists(key)) scene.textures.remove(key);
-  const canvas = scene.textures.createCanvas(key, w, h)!;
+  const existing = scene.textures.exists(key) ? (scene.textures.get(key) as Phaser.Textures.CanvasTexture) : undefined;
+  const canvas = existing ?? scene.textures.createCanvas(key, w, h)!;
   const ctx = canvas.getContext();
+  ctx.clearRect(0, 0, w, h);
   ctx.drawImage(src, 0, sy, w, h, 0, 0, w, h);
   const image = ctx.getImageData(0, 0, w, h);
   const px = image.data;
@@ -111,8 +116,10 @@ function dressedCanvas(scene: Phaser.Scene, key: string, src: HTMLImageElement, 
     }
   }
   ctx.putImageData(image, 0, 0);
-  for (let f = 0; f < (w / FRAME_SIZE) * (h / FRAME_SIZE); f++) {
-    canvas.add(f, 0, (f % COLUMNS) * FRAME_SIZE, Math.floor(f / COLUMNS) * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE);
+  if (!existing) {
+    for (let f = 0; f < (w / FRAME_SIZE) * (h / FRAME_SIZE); f++) {
+      canvas.add(f, 0, (f % COLUMNS) * FRAME_SIZE, Math.floor(f / COLUMNS) * FRAME_SIZE, FRAME_SIZE, FRAME_SIZE);
+    }
   }
   canvas.refresh();
   return canvas;
@@ -155,7 +162,10 @@ function eraseHead(px: Uint8ClampedArray, w: number, fx: number, fy: number, kin
 
 const sheetImage = (scene: Phaser.Scene, key: string): HTMLImageElement => scene.textures.get(key).getSourceImage() as HTMLImageElement;
 
-/** (Re)draws the Character's body sheet in the outfit and rebuilds its looping animations. */
+/**
+ * (Re)draws the Character's body sheet in the outfit. Its looping animations are built the first
+ * time only: they point at the sheet's frames, which a redraw keeps, so they show the new clothes as is.
+ */
 export function makeBody(scene: Phaser.Scene, id: string, kind: SpriteKind, outfit: Outfit): void {
   const src = sheetImage(scene, SHEET[kind]);
   dressedCanvas(scene, bodyTexture(id), src, 0, src.width, src.height, kind, outfit, BODY_LIMITS);
@@ -163,7 +173,7 @@ export function makeBody(scene: Phaser.Scene, id: string, kind: SpriteKind, outf
   for (const [name, row] of Object.entries(BODY_ROWS) as [keyof typeof BODY_ROWS, number][]) {
     if (name === "jump") continue;
     const key = ANIM[name](id);
-    if (scene.anims.exists(key)) scene.anims.remove(key);
+    if (scene.anims.exists(key)) continue;
     scene.anims.create({ key, frames: scene.anims.generateFrameNumbers(bodyTexture(id), { frames: rowFrames(row) }), frameRate: FRAME_RATE[name], repeat: -1 });
   }
 }
@@ -175,7 +185,7 @@ export function makeBike(scene: Phaser.Scene, id: string, kind: SpriteKind, outf
   dressedCanvas(scene, bikeTexture(id), src, row * FRAME_SIZE, src.width, FRAME_SIZE, kind, outfit, BIKE_LIMITS);
   headAnchors(scene, SHEET.bikes, kind);
   const key = ANIM.ride(id);
-  if (scene.anims.exists(key)) scene.anims.remove(key);
+  if (scene.anims.exists(key)) return;
   scene.anims.create({ key, frames: scene.anims.generateFrameNumbers(bikeTexture(id), { frames: rowFrames(0) }), frameRate: FRAME_RATE.ride, repeat: -1 });
 }
 

@@ -100,13 +100,11 @@ export class CharacterSelect extends Phaser.Scene {
     audio.sfx("move");
   }
 
+  /** Repaints the Character's sheets; the card's sprite keeps idling on them and shows the new clothes. */
   private dress(id: string, outfit: Outfit): void {
     const c = CHARACTERS[lastPick];
     makeBody(this, id, c.sprite, outfit);
     makeBike(this, id, c.sprite, outfit);
-    const body = this.cards[lastPick].getAt(0) as Phaser.GameObjects.Sprite;
-    body.setTexture(bodyTexture(id), 0);
-    this.pose(body, id, true);
   }
 
   /** The highlighted Character idles (its head stays put frame to frame); the others stand still. */
