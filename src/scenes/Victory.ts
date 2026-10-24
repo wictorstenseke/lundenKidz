@@ -17,7 +17,7 @@ export class Victory extends Phaser.Scene {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor(0x2a2440);
     text(this, width / 2, 90, "You did it!", 40, "#ffe066");
-    text(this, width / 2, 150, "Every level beaten", 16);
+    text(this, width / 2, 150, "Every level in every world beaten", 16);
     CHARACTERS.forEach((c, i) => {
       const head = this.add.image(width / 2 + (i - 1) * 140, 280, `head-${c.id}`);
       this.tweens.add({ targets: head, y: 240, duration: 350, yoyo: true, repeat: -1, delay: i * 120, ease: "Quad.out" });

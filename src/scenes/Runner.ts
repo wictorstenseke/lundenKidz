@@ -7,7 +7,10 @@ import { THEMES } from "../levels/themes";
 import { resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
 import { applyCameraFx } from "../fx/filters";
-import { ambientLeaves, itemSparkle, landingDust } from "../fx/particles";
+import { FX } from "../fx/flags";
+import { addLantern, enableLights, litIfEnabled } from "../fx/lights";
+import { createParallax, type ParallaxHandle } from "../fx/parallax";
+import { ambientLeaves, itemSparkle, landingDust, trailDust } from "../fx/particles";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { runScore } from "../logic/highscores";
 import {
@@ -19,6 +22,11 @@ import {
   gapRange,
   landing,
   levelOut,
+  jumpGap,
+  LANDINGS,
+  landingHeightAt,
+  landingSlopeAt,
+  type LandingShape,
   rampHeightAt,
   rampPop,
   rampRunOut,
@@ -64,8 +72,16 @@ const FRAME = { rock: 68, heart: 44 };
 /** Dirt trail tiles: [single, left end, middle, right end]. */
 const TRAIL_TOP = [60, 61, 62, 63];
 const TRAIL_FILL = [120, 121, 122, 123];
-const GAP_COLOR = 0x1f4a3a;
 const theme = THEMES.grass;
+/** A Gap shows the same floor colour the Levels' pits do. */
+const GAP_COLOR = theme.backdrop.floor;
+
+/**
+ * Nothing harmless stands near the riding line except the stadium floodlights (tall masts, nothing
+ * like a Hurdle); trees and bushes stay in the parallax bands, well behind the rider.
+ */
+const FLOOD_SPACING: [number, number] = [640, 980];
+const FLOOD_DEPTH = 2;
 
 interface Ramp {
   x0: number;
@@ -82,6 +98,12 @@ interface Gap {
   parts: Phaser.GameObjects.GameObject[];
 }
 
+interface Landing extends LandingShape {
+  x0: number;
+  x1: number;
+  parts: Phaser.GameObjects.GameObject[];
+}
+
 /** MTB Trail on a mountain bike: rides on its own, faster and faster; only jump is used. */
 export class Runner extends Phaser.Scene {
   private data_!: RunnerData;
@@ -92,12 +114,20 @@ export class Runner extends Phaser.Scene {
   private enemies!: Phaser.Physics.Arcade.Group;
   private floorCollider!: Phaser.Physics.Arcade.Collider;
   private ground!: Phaser.GameObjects.TileSprite;
-  private backdrop!: Phaser.GameObjects.TileSprite;
-  private floorFill!: Phaser.GameObjects.Rectangle;
+  private parallax!: ParallaxHandle;
   private clouds: { img: Phaser.GameObjects.Image; offset: number; parallax: number }[] = [];
+  /** Floodlight masts beside the trail, dropped once they scroll off. */
+  private floods: Phaser.GameObjects.Image[] = [];
+  private nextFloodX = 0;
+  private dust!: Phaser.GameObjects.Particles.ParticleEmitter;
+  /** Light2D is on (FX.lights flag and WebGL). */
+  private lit = false;
   private ramps: Ramp[] = [];
   private gaps: Gap[] = [];
+  private landings: Landing[] = [];
   private onRamp?: Ramp;
+  /** Set while the wheels follow a landing mound's downslope. */
+  private onLanding?: Landing;
   /** Set when jumping off a ramp; cleared on landing. */
   private airborneSince?: number;
   /** Seconds in the air this jump, and whether the player flipped (which skips the ollie pop). */
@@ -128,13 +158,17 @@ export class Runner extends Phaser.Scene {
     this.rnd = new Phaser.Math.RandomDataGenerator([String(Date.now())]);
     this.ramps = [];
     this.gaps = [];
+    this.landings = [];
     this.onRamp = undefined;
+    this.onLanding = undefined;
     this.airborneSince = undefined;
     this.wheelieSince = undefined;
     this.inAir = false;
     this.fallSpeed = 0;
     this.elapsed = 0;
     this.nextSpawnX = START_X + 320;
+    this.floods = [];
+    this.nextFloodX = 260;
     this.diamonds = 0;
     this.stomps = 0;
     this.bonus = 0;
@@ -147,22 +181,23 @@ export class Runner extends Phaser.Scene {
     const viewW = this.scale.width / ZOOM;
     this.physics.world.gravity.y = PHYSICS.gravity;
 
-    // Background and ground are camera-wide strips that slide along under the camera.
-    this.backdrop = this.add.tileSprite(0, WORLD_H - 100, viewW + 2, 72, `backdrop-${theme.id}`).setOrigin(0).setDepth(-10);
-    this.floorFill = this.add.rectangle(0, WORLD_H - 28, viewW + 2, 40, theme.backdrop.floor).setOrigin(0).setDepth(-10);
+    this.lit = enableLights(this, FX.lights, theme.ambient);
+    // Same sky / far / near parallax bands as the Levels, glued to the camera; the ground strip slides under it.
+    this.parallax = createParallax(this, theme, 0, WORLD_H);
     this.clouds = Array.from({ length: 6 }, (_, i) => ({
-      img: this.add.image(0, this.rnd.between(10, 100), "bg-cloud").setDepth(-11).setAlpha(this.rnd.realInRange(0.4, 0.7)).setScale(this.rnd.pick([1, 2])),
+      img: this.add.image(0, this.rnd.between(10, 100), "bg-cloud").setDepth(-12.5).setAlpha(this.rnd.realInRange(0.3, 0.55)).setScale(this.rnd.pick([1, 1, 2])),
       offset: i * 90 + this.rnd.between(0, 60),
       parallax: this.rnd.realInRange(0.1, 0.3),
     }));
-    this.ground = this.add.tileSprite(0, FLOOR, viewW + TILE * 2, TILE * 2, "trail-ground").setOrigin(0).setDepth(3);
+    this.ground = litIfEnabled(this.add.tileSprite(0, FLOOR, viewW + TILE * 2, TILE * 2, "trail-ground").setOrigin(0).setDepth(3), this.lit);
     const floorBody = this.add.zone(-1000, FLOOR, 1e8, TILE * 2).setOrigin(0);
     this.physics.add.existing(floorBody, true);
+    this.dust = trailDust(this);
 
     this.hazards = this.physics.add.staticGroup();
     this.pickups = this.physics.add.staticGroup();
     this.enemies = this.physics.add.group();
-    this.player = new Player(this, START_X, FLOOR, this.data_.characterId, RUN.hearts, "bike");
+    this.player = new Player(this, START_X, FLOOR, this.data_.characterId, RUN.hearts, "bike").setLit(this.lit);
 
     this.floorCollider = this.physics.add.collider(this.player, floorBody);
     this.physics.add.collider(this.enemies, floorBody);
@@ -177,7 +212,7 @@ export class Runner extends Phaser.Scene {
     applyCameraFx(cam);
     ambientLeaves(this, { color: 0x6f9a3a });
 
-    this.controls = new Controls(this);
+    this.controls = new Controls(this, "game");
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());
     if (!this.scene.isActive(SCENES.hud)) this.scene.launch(SCENES.hud);
     audio.playMusic("runner");
@@ -202,7 +237,9 @@ export class Runner extends Phaser.Scene {
     const speed = speedAt(this.elapsed);
     this.player.control(this.controls, time, dt, 1, speed);
     this.player.anims.timeScale = speed / RUN.startSpeed;
+    this.kickUpDust(speed);
     this.rideRamps(time);
+    this.rideLandings(time);
     this.wheelie(time);
     // Judge the touchdown before the ground tilt eases the bike upright, or a clean flip (-360)
     // gets pulled 20% towards 0 on that first frame and reads as a crash.
@@ -217,6 +254,10 @@ export class Runner extends Phaser.Scene {
       const [min, max] = gapRange(speed);
       this.nextSpawnX += width + this.rnd.between(min, max);
     }
+    while (this.nextFloodX < view.right + 80) {
+      this.placeFloodlight(this.nextFloodX);
+      this.nextFloodX += this.rnd.between(...FLOOD_SPACING);
+    }
     this.cleanUp(view.x - 80);
 
     const score = runScore({ distancePx: this.player.x - START_X, diamonds: this.diamonds, stomps: this.stomps, bonus: this.bonus });
@@ -228,9 +269,7 @@ export class Runner extends Phaser.Scene {
 
   private slideScenery(): void {
     const view = this.cameras.main.worldView;
-    this.backdrop.setX(view.x - 1);
-    this.backdrop.tilePositionX = view.x * 0.35;
-    this.floorFill.setX(view.x - 1);
+    this.parallax.update();
     // Clouds drift by slower than the ground and wrap around the view.
     const span = view.width + 120;
     for (const c of this.clouds) {
@@ -238,6 +277,26 @@ export class Runner extends Phaser.Scene {
     }
     // Snap to whole tiles so the ground pattern stays fixed to the world.
     this.ground.setX(Math.floor(view.x / TILE) * TILE - TILE);
+  }
+
+  /** Dust streams off the rear wheel while it rolls, thicker the faster the ride. */
+  private kickUpDust(speed: number): void {
+    const p = this.player;
+    const rolling = this.onGround() && !this.onRamp && !this.gapAt(p.body.center.x);
+    this.dust.setPosition(p.body.center.x - 9, p.body.bottom);
+    this.dust.emitting = rolling;
+    this.dust.frequency = Math.max(18, 90 - (speed - RUN.startSpeed) * 0.4);
+  }
+
+  /** A stadium floodlight beside the trail at x, unless a Gap is there (obstacles for this stretch are already placed). */
+  private placeFloodlight(x: number): void {
+    if (this.gapAt(x, -TILE)) return;
+    // The mast stands just behind the trail's near edge (its foot is hidden by the ground strip) and is
+    // dimmed a touch, so it reads as off the track; the beam still falls onto the riding line, in front
+    // of the trail but behind the rider, so it washes over hurdles without hiding them.
+    const mast = addLantern(this, x, FLOOR + 6, { kind: "flood", enabled: this.lit, halo: FX.glow, intensity: 1.1, beamDepth: 8 });
+    mast.sprite.setDepth(FLOOD_DEPTH).setTint(0xcfd6e0);
+    this.floods.push(mast.sprite);
   }
 
   // --- Ramps, air and gaps -----------------------------------------------
@@ -275,6 +334,47 @@ export class Runner extends Phaser.Scene {
     }
   }
 
+  /** Wheels on the trail or on a landing's slope (a landing isn't a physics floor, so `grounded` misses it). */
+  private onGround(): boolean {
+    return this.player.grounded || this.onLanding !== undefined;
+  }
+
+  /**
+   * Comes down onto a landing mound's surface and follows it to the trail. Arriving low (a short
+   * jump, or rolling in along the flat) just lifts the bike up the back face: no punishment, but the
+   * flight was shorter so there's less Big Air.
+   */
+  private rideLandings(time: number): void {
+    const p = this.player;
+    const x = p.body.center.x;
+    if (!this.onLanding) {
+      const land = this.landings.find((l) => x >= l.x0 && x < l.x1);
+      if (!land || this.onRamp) return;
+      const surface = FLOOR - landingHeightAt(land, (x - land.x0) / land.length);
+      if (p.body.bottom < surface - 2 && p.body.velocity.y < 0) return; // still rising above it
+      if (p.body.bottom < surface - 2) return; // falling, not down to it yet
+      this.onLanding = land;
+      p.body.setAllowGravity(false);
+    }
+    const land = this.onLanding;
+    const t = (x - land.x0) / land.length;
+    if (this.controls.pressed("jump")) {
+      p.body.setAllowGravity(true);
+      p.launch(PHYSICS.jumpVelocity);
+      this.onLanding = undefined;
+      this.airborneSince = time;
+      audio.sfx("jump");
+    } else if (t < 1) {
+      // Follow the surface: descend at its current steepness, nudged onto it.
+      const surface = FLOOR - landingHeightAt(land, t);
+      const drop = -p.body.velocity.x * landingSlopeAt(land, t);
+      p.setVelocityY(drop + (surface - p.body.bottom) * 20);
+    } else {
+      p.body.setAllowGravity(true);
+      this.onLanding = undefined;
+    }
+  }
+
   /** Holding back lifts the front wheel; the longer it's held, the more points on release. */
   private wheelie(time: number): void {
     const holding = this.controls.held("left") && this.player.grounded && !this.onRamp;
@@ -297,7 +397,7 @@ export class Runner extends Phaser.Scene {
    */
   private tilt(dt: number): void {
     const p = this.player;
-    const airborne = !p.grounded && !this.onRamp;
+    const airborne = !this.onGround() && !this.onRamp;
     p.anchor = Phaser.Math.Linear(p.anchor, airborne ? 0 : 1, Math.min(1, dt * 10));
     if (airborne) {
       this.airTime += dt;
@@ -318,6 +418,10 @@ export class Runner extends Phaser.Scene {
     } else if (this.onRamp) {
       const t = Phaser.Math.Clamp((p.body.center.x - this.onRamp.x0) / this.onRamp.length, 0, 1);
       target = -Phaser.Math.RadToDeg(Math.atan(rampSlopeAt(this.onRamp, t)));
+    } else if (this.onLanding) {
+      // Nose down the landing's slope (the slope is negative on the way down).
+      const t = Phaser.Math.Clamp((p.body.center.x - this.onLanding.x0) / this.onLanding.length, 0, 1);
+      target = -Phaser.Math.RadToDeg(Math.atan(landingSlopeAt(this.onLanding, t)));
     }
     p.tilt = Phaser.Math.Linear(p.tilt, target, Math.min(1, dt * 12));
   }
@@ -325,7 +429,7 @@ export class Runner extends Phaser.Scene {
   /** Judges each touchdown: crash if badly tilted, otherwise score flips and big air. */
   private trackLanding(time: number): void {
     const p = this.player;
-    if (!p.grounded) {
+    if (!this.onGround()) {
       if (!this.onRamp) {
         this.inAir = true;
         this.fallSpeed = Math.max(0, p.body.velocity.y);
@@ -425,16 +529,8 @@ export class Runner extends Phaser.Scene {
         this.hazard(x + 36, "rock");
         this.diamondArc(x, FLOOR - 30, 80, 36);
         return 80;
-      case "kicker": {
-        const ramp = this.ramp(x, "small");
-        this.diamondArc(ramp.x1 + 10, FLOOR - 40, 90, 30);
-        return ramp.x1 - x + Math.max(100, runOut);
-      }
-      case "bigKicker": {
-        const ramp = this.ramp(x, "big");
-        this.diamondArc(ramp.x1 + 10, FLOOR - 60, 130, 40);
-        return ramp.x1 - x + Math.max(140, runOut);
-      }
+      case "kicker": return this.jump(x, "small", speed) + Math.max(40, runOut * 0.5);
+      case "bigKicker": return this.jump(x, "big", speed) + Math.max(60, runOut * 0.5);
       case "kickerGap": {
         const ramp = this.ramp(x, "small");
         const gap = this.gap(ramp.x1 + 12, 3);
@@ -484,7 +580,7 @@ export class Runner extends Phaser.Scene {
 
   private enemy(x: number, kind: EnemyKind): number {
     // Enemies turn back at gap edges instead of riding into them.
-    this.enemies.add(new Enemy(this, x + 12, FLOOR, kind, (wx) => !this.gapAt(wx), () => false));
+    this.enemies.add(litIfEnabled(new Enemy(this, x + 12, FLOOR, kind, (wx) => !this.gapAt(wx), () => false), this.lit));
     return 24;
   }
 
@@ -494,6 +590,24 @@ export class Runner extends Phaser.Scene {
     const ramp: Ramp = { x0: x, x1: x + spec.length, length: spec.length, height: spec.height, launch: spec.launch, parts: [img] };
     this.ramps.push(ramp);
     return ramp;
+  }
+
+  /** The landing mound of a jump, starting at x. */
+  private landing(x: number, size: keyof typeof LANDINGS): Landing {
+    const spec = LANDINGS[size];
+    const img = this.add.image(x, FLOOR, `landing-${size}`).setOrigin(0, 1).setDepth(4);
+    const land: Landing = { ...spec, x0: x, x1: x + spec.length, parts: [img] };
+    this.landings.push(land);
+    return land;
+  }
+
+  /** Kicker, flat run, landing mound: diamonds trace the flight from lip to landing. */
+  private jump(x: number, size: keyof typeof RAMPS, speed: number): number {
+    const ramp = this.ramp(x, size);
+    const land = this.landing(ramp.x1 + jumpGap(speed), size);
+    const span = land.x0 - ramp.x1;
+    this.diamondArc(ramp.x1 - 8, FLOOR - ramp.height - 12, span + 16 + land.length * 0.25, size === "big" ? 44 : 32);
+    return land.x1 - x;
   }
 
   /** A hole in the trail `tiles` wide, starting on the next tile boundary. */
@@ -543,6 +657,16 @@ export class Runner extends Phaser.Scene {
       });
     this.ramps = keep(this.ramps);
     this.gaps = keep(this.gaps);
+    this.landings = this.landings.filter((l) => {
+      if (l.x1 >= leftEdge || l === this.onLanding) return true;
+      l.parts.forEach((p) => p.destroy());
+      return false;
+    });
+    this.floods = this.floods.filter((mast) => {
+      if (mast.x + TILE >= leftEdge) return true;
+      mast.destroy();
+      return false;
+    });
   }
 
   // --- Gameplay ----------------------------------------------------------
@@ -717,30 +841,71 @@ function makeTrailTextures(scene: Phaser.Scene): void {
   sc.fillRect(9, 5, 1, 6);
   stump.refresh();
 
-  for (const [size, spec] of Object.entries(RAMPS)) {
-    const { length: w, height: h } = spec;
-    const ramp = scene.textures.createCanvas(`ramp-${size}`, w, h)!;
-    const ctx = ramp.getContext();
+  /**
+   * Log-built mound: courses of stacked logs (log-cabin style, with round cut ends showing on the
+   * face) under a planked deck that follows `tops` (surface row per column); a boarded wall closes
+   * the open side (right for a kicker's lip, left for a landing's back).
+   */
+  const drawTimberMound = (ctx: CanvasRenderingContext2D, w: number, h: number, tops: number[], wall: "left" | "right") => {
     const dot = (x: number, y: number, color: string, hh = 1) => {
       ctx.fillStyle = color;
       ctx.fillRect(x, y, 1, hh);
     };
-    // Solid wooden kicker: planked side panel under the curve, outlined, with a lighter riding surface.
-    const side = "#a86b3c";
-    const sideDark = "#8a5532";
+    const plankSeam = "#a07040";
+    const ring = "#c89560";
+    const deckThick = 3;
+    const course = 4; // px per log course
     for (let x = 0; x < w; x++) {
-      const top = Math.round(h - rampHeightAt(spec, (x + 1) / w));
+      const top = tops[x];
       if (top >= h) {
         dot(x, h - 1, outline);
         continue;
       }
       dot(x, top, outline);
-      if (h - top > 1) dot(x, top + 1, wood, Math.min(2, h - top - 1));
-      if (h - top > 3) dot(x, top + 3, x % 6 === 0 ? sideDark : side, h - top - 3);
+      const deckH = Math.min(deckThick, h - top - 1);
+      if (deckH > 0) dot(x, top + 1, x % 5 === 4 ? plankSeam : wood, deckH);
+      // Log courses counted from the ground up, so they stay level across the whole mound.
+      for (let y = top + 1 + deckH; y < h - 1; y++) {
+        const row = (h - 1 - y) % course;
+        dot(x, y, row === course - 1 ? outline : row === 0 ? barkDark : bark);
+      }
       dot(x, h - 1, outline);
     }
-    // Back wall of the lip
-    for (let y = 0; y < h; y++) dot(w - 1, y, outline);
+    // Round log ends on the face: one per course, staggered course to course like real stacking.
+    for (let cy = h - 1 - course; cy > deckThick + 2; cy -= course) {
+      const stagger = ((h - 1 - cy) / course) % 2 === 0 ? 0 : 5;
+      for (let ex = (wall === "right" ? w - 6 : 6) + (wall === "right" ? -stagger : stagger); ex > 2 && ex < w - 2; ex += wall === "right" ? -10 : 10) {
+        // Only where the log is actually under the deck.
+        if (tops[ex] + deckThick + 1 > cy - 1) continue;
+        dot(ex - 1, cy - 1, outline, 3);
+        dot(ex + 1, cy - 1, outline, 3);
+        dot(ex, cy - 2, outline);
+        dot(ex, cy - 1, wood, 2);
+        dot(ex, cy, ring);
+      }
+    }
+    // Boarded wall on the open side.
+    const wx = wall === "right" ? w - 1 : 0;
+    const bx = wall === "right" ? w - 2 : 1;
+    for (let y = 0; y < h; y++) {
+      if (y < tops[bx] - 1) continue;
+      dot(wx, y, outline);
+      if (y > tops[bx] && y < h - 1) dot(bx, y, y % 4 === 3 ? plankSeam : bark);
+    }
+  };
+
+  for (const [size, spec] of Object.entries(RAMPS)) {
+    const { length: w, height: h } = spec;
+    const ramp = scene.textures.createCanvas(`ramp-${size}`, w, h)!;
+    const tops = Array.from({ length: w }, (_, x) => Math.round(h - rampHeightAt(spec, (x + 1) / w)));
+    drawTimberMound(ramp.getContext(), w, h, tops, "right");
     ramp.refresh();
+  }
+  for (const [size, spec] of Object.entries(LANDINGS)) {
+    const { length: w, height: h } = spec;
+    const land = scene.textures.createCanvas(`landing-${size}`, w, h)!;
+    const tops = Array.from({ length: w }, (_, x) => Math.round(h - landingHeightAt(spec, (x + 0.5) / w)));
+    drawTimberMound(land.getContext(), w, h, tops, "left");
+    land.refresh();
   }
 }

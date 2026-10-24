@@ -6,19 +6,21 @@ import { LEVELS } from "../levels/levels";
 import { parseLevel, type Cell, type ParsedLevel } from "../levels/parse";
 import { parseTiledLevel, type TiledMap } from "../levels/tiled";
 import { THEMES, type Theme } from "../levels/themes";
+import { levelLabel } from "../levels/worlds";
 import { tileFrame } from "../levels/tiles";
 import { landedOn, resolveContact } from "../logic/contact";
 import { collectDiamond } from "../logic/diamonds";
 import { FX } from "../fx/flags";
 import { applyCameraFx } from "../fx/filters";
 import { addLantern, enableLights, litIfEnabled } from "../fx/lights";
-import { ambientLeaves, itemSparkle, landingDust } from "../fx/particles";
+import { ambientEmbers, ambientLeaves, ambientRain, itemSparkle, landingDust } from "../fx/particles";
 import { createParallax, type ParallaxHandle } from "../fx/parallax";
+import { ambientFog, scatterStars } from "../fx/sky";
 import { attachDiamondBling, burstDiamond, DIAMOND_TEXTURE } from "../objects/Diamond";
 import { Enemy } from "../objects/Enemy";
 import { Player } from "../objects/Player";
 import { addDiamond, markLevelComplete, session } from "../session";
-import { levelJsonKey, TILE_MARGIN, TILE_SPACING } from "./Boot";
+import { levelJsonKey, TILE_MARGIN, TILE_SPACING, VINE_TEXTURE } from "./Boot";
 import type { PauseData } from "./Pause";
 import { handleGlobalKeys } from "../ui";
 
@@ -44,10 +46,12 @@ export interface HudState {
 type Phase = "playing" | "dying" | "won";
 
 const FRAME = { heart: 44, flag: [111, 112], pole: 131, spring: [107, 108], fence: 106, sign: 85 };
-/** Drifting particles per theme: leaves in the meadow, snowflakes on the hills. */
+/** Drifting particles per theme: leaves in the meadow, snowflakes on the hills, sand in the desert. */
 const AMBIENT: Partial<Record<Theme["id"], Parameters<typeof ambientLeaves>[1]>> = {
   grass: { color: 0x6f9a3a },
   snow: { color: 0xffffff, accent: 0xdff6f5 },
+  alpine: { color: 0xeef6ff, accent: 0xc8d8e8, density: 0.5 },
+  desert: { color: 0xf0d08a, accent: 0xd9a85c, density: 0.7 },
 };
 
 export class Game extends Phaser.Scene {
@@ -89,7 +93,7 @@ export class Game extends Phaser.Scene {
     const worldW = this.level.width * TILE;
     const worldH = this.level.height * TILE;
 
-    this.physics.world.gravity.y = PHYSICS.gravity;
+    this.physics.world.gravity.y = PHYSICS.gravity * (this.theme.gravity ?? 1);
     this.physics.world.setBounds(0, 0, worldW, worldH + 200, true, true, false, false);
     this.lit = enableLights(this, FX.lights, this.theme.ambient);
     this.createBackdrop(worldW, worldH);
@@ -160,11 +164,14 @@ export class Game extends Phaser.Scene {
     cam.setZoom(ZOOM).setBounds(0, 0, worldW, worldH).setBackgroundColor(this.theme.sky);
     cam.startFollow(this.player, false, 0.12, 0.12, 0, 20);
     cam.setDeadzone(24, 40);
-    applyCameraFx(cam);
+    applyCameraFx(cam, FX, this.theme.vignette);
     const drift = AMBIENT[this.theme.id];
     if (drift) ambientLeaves(this, drift);
+    if (this.theme.rain) ambientRain(this);
+    if (this.theme.embers) ambientEmbers(this);
+    if (this.theme.fog) ambientFog(this, worldH - 2 * TILE);
 
-    this.controls = new Controls(this);
+    this.controls = new Controls(this, "game");
     this.events.on(Phaser.Scenes.Events.RESUME, () => this.controls.reset());
     if (!this.scene.isActive(SCENES.hud)) this.scene.launch(SCENES.hud);
     audio.playMusic(this.theme.music);
@@ -196,6 +203,7 @@ export class Game extends Phaser.Scene {
   private createBackdrop(worldW: number, worldH: number): void {
     // Sky, far hills and near hills drift at different speeds; the strips follow the camera each update().
     this.parallax = createParallax(this, this.theme, worldW, worldH);
+    if (this.theme.stars) scatterStars(this, worldW, worldH, `stars-${this.data_.levelIndex}`);
 
     if (!this.theme.clouds) return;
     // Scattered over the area the camera can see at this parallax, seeded per Level so they don't jump on restart.
@@ -259,6 +267,12 @@ export class Game extends Phaser.Scene {
 
   private createDecor(): void {
     for (const d of this.level.decor) {
+      if (d.kind === "vine") {
+        // Hangs from the top edge of its cell; a gentle sway, offset per column so they don't move in step.
+        const vine = litIfEnabled(this.add.image(cx(d), d.y * TILE, VINE_TEXTURE).setOrigin(0.5, 0).setDepth(0), this.lit);
+        this.tweens.add({ targets: vine, angle: { from: -4, to: 4 }, duration: 1600, yoyo: true, repeat: -1, ease: "Sine.inOut", delay: (d.x * 230) % 1600 });
+        continue;
+      }
       const frame = d.kind === "fence" ? FRAME.fence : d.kind === "sign" ? FRAME.sign : this.theme.decor[d.x % this.theme.decor.length];
       litIfEnabled(this.add.image(cx(d), d.y * TILE + TILE / 2, "tiles", frame).setDepth(0), this.lit);
     }
@@ -417,7 +431,7 @@ export class Game extends Phaser.Scene {
       maxHearts: this.player.health.max,
       diamonds: session.progress.diamonds,
       characterId: this.data_.characterId,
-      levelName: LEVELS[this.data_.levelIndex].name,
+      levelName: `${levelLabel(this.data_.levelIndex)}  ${LEVELS[this.data_.levelIndex].name}`,
     };
     this.registry.set("hud", state);
   }

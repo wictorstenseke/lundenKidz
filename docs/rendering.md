@@ -58,8 +58,9 @@ cam.filters.external.list[0].active = false; // vignette
 | File | Purpose |
 | --- | --- |
 | `src/fx/flags.ts` | `FX` flags + `parseFxFlags(search)` (unit tested). |
+| `src/fx/sky.ts` | `ambientFog(scene, groundY)`: translucent fog banks glued to the camera, wrapping and drifting (haunted). `scatterStars(scene, w, h, seed)`: twinkling stars at parallax 0.1 (rooftops, space). Both switched on by theme flags in `Game.create`. |
 | `src/fx/filters.ts` | `applyCameraFx(camera)` → bloom + vignette handles with `setBloom/setVignette`; `addGlow(obj, color, strength)`. |
-| `src/fx/parallax.ts` | `createParallax(scene, theme, worldW, worldH)`: sky / far / near bands cut from the Kenney `backgrounds.png` rows (24 px each), scroll factors 0.1 / 0.25 / 0.45, glued to the camera; call `update()` each frame. The Game scene uses it; MTB Trail keeps its own strip. |
+| `src/fx/parallax.ts` | `createParallax(scene, theme, worldW, worldH)`: sky / far / near bands cut from the Kenney `backgrounds.png` rows (24 px each), scroll factors 0.1 / 0.25 / 0.45, glued to the camera; call `update()` each frame. Both the Game scene and MTB Trail use it. |
 | `src/fx/particles.ts` | `landingDust(scene, x, y, strength)`, `itemSparkle(scene, x, y, color)`, `ambientLeaves(scene, { color, accent, density, depth })`. All on tiny generated pixel textures with integer scales. |
 | `src/fx/lights.ts` | `enableLights(scene, enabled, ambient)`, `litIfEnabled(obj, enabled)`, `addLantern(scene, x, y, opts)`; normal-map notes in the header comment. |
 | `src/levels/tiled.ts` | `parseTiledLevel(json)` and `levelFromRows(rows)` (the inverse, used by the generator script). |
@@ -71,7 +72,7 @@ Where they are wired in:
   `applyCameraFx` → `ambientLeaves` (leaves in the meadow, snowflakes on Snowy Hills).
 - `Game.update`: `parallax.update()` every frame; `trackLanding()` puffs dust when the Player touches down
   faster than 120 px/s; `takeHeart` sparkles.
-- `Runner.create`/`trackLanding`/`pickUp`: camera FX, leaves, dust on touchdown, heart sparkle.
+- `Runner.create`/`trackLanding`/`pickUp`: camera FX, parallax, Light2D ambient (ground, rider, enemies, scenery opt in), leaves, rolling wheel dust (`trailDust`), dust on touchdown, heart sparkle. Nothing decorative stands near the riding line (it got mistaken for Hurdles); `placeFloodlight` adds a stadium floodlight mast (`addLantern` kind `flood`: cool white, big radius, no flicker) every 560–900 px, cleaned up with the obstacles. Kicker ramps are drawn as dirt mounds with a planked deck and support posts.
 
 ## Light2D
 

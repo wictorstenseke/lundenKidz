@@ -42,6 +42,7 @@ export class Boot extends Phaser.Scene {
     }
     makeBackdrops(this);
     makeCloud(this);
+    makeVine(this);
     makeExtrudedTiles(this);
     makeDiamondTextures(this);
     this.scene.start(SCENES.title);
@@ -112,8 +113,11 @@ function drawStickerHead(ctx: CanvasRenderingContext2D, img: HTMLImageElement): 
     ctx.drawImage(sil, Math.cos(a) * OUTLINE, Math.sin(a) * OUTLINE);
   }
 
-  // The head itself.
+  // The head itself, lifted a little so the face stays bright under the shading and Light2D ambient.
+  ctx.save();
+  ctx.filter = "brightness(1.12) saturate(1.05)";
   ctx.drawImage(img, x, y, w, h);
+  ctx.restore();
 
   // Shading confined to the head's pixels: light top-left, shade bottom-right, a rim of darkness at the edge.
   ctx.save();
@@ -125,12 +129,12 @@ function drawStickerHead(ctx: CanvasRenderingContext2D, img: HTMLImageElement): 
   light.addColorStop(0, "rgba(255,255,255,0.28)");
   light.addColorStop(0.45, "rgba(255,255,255,0)");
   light.addColorStop(0.8, "rgba(20,10,40,0)");
-  light.addColorStop(1, "rgba(20,10,40,0.45)");
+  light.addColorStop(1, "rgba(20,10,40,0.3)");
   ctx.fillStyle = light;
   ctx.fillRect(0, 0, HEAD_SIZE, HEAD_SIZE);
   const bottom = ctx.createLinearGradient(0, y, 0, y + h);
   bottom.addColorStop(0.55, "rgba(20,10,40,0)");
-  bottom.addColorStop(1, "rgba(20,10,40,0.3)");
+  bottom.addColorStop(1, "rgba(20,10,40,0.2)");
   ctx.fillStyle = bottom;
   ctx.fillRect(0, 0, HEAD_SIZE, HEAD_SIZE);
   // Small glossy specular.
@@ -158,7 +162,9 @@ function drawFallbackHead(ctx: CanvasRenderingContext2D): void {
 function makeBackdrops(scene: Phaser.Scene): void {
   const src = scene.textures.get("backdrops").getSourceImage() as HTMLImageElement;
   for (const theme of Object.values(THEMES)) {
-    const { firstColumn, columns } = theme.backdrop;
+    const { firstColumn, columns, paint } = theme.backdrop;
+    if (paint) continue; // drawn in code by createParallax when first needed
+
     const w = columns * 24;
     const canvas = scene.textures.createCanvas(`backdrop-${theme.id}`, w, 72)!;
     canvas.getContext().drawImage(src, firstColumn * 24, 0, w, 72, 0, 0, w, 72);
@@ -177,6 +183,58 @@ function makeCloud(scene: Phaser.Scene): void {
     ctx.fill();
   }
   ctx.fillRect(12, 13, 24, 7);
+  canvas.refresh();
+}
+
+export const VINE_TEXTURE = "vine";
+
+/** A leafy vine two tiles long, hung by its top edge from the tile above (origin 0.5, 0). */
+function makeVine(scene: Phaser.Scene): void {
+  const rows = [
+    "...GG...",
+    "...G....",
+    "..LG....",
+    "...G....",
+    "...GL...",
+    "...G....",
+    "..LG....",
+    "...G....",
+    "...GL...",
+    "...G....",
+    "...G....",
+    "..LG....",
+    "...G....",
+    "...GL...",
+    "...G....",
+    "...G....",
+    "..LG....",
+    "...G....",
+    "...G....",
+    "...GL...",
+    "...G....",
+    "...G....",
+    "....G...",
+    "....G...",
+    "...LG...",
+    "....G...",
+    "....G...",
+    "....GL..",
+    "....G...",
+    "....G...",
+    "....L...",
+    "........",
+  ];
+  const palette: Record<string, string> = { G: "#3f7a2e", L: "#6fbf4a" };
+  const canvas = scene.textures.createCanvas(VINE_TEXTURE, rows[0].length, rows.length)!;
+  const ctx = canvas.getContext();
+  rows.forEach((row, y) => {
+    [...row].forEach((ch, x) => {
+      const color = palette[ch];
+      if (!color) return;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, y, 1, 1);
+    });
+  });
   canvas.refresh();
 }
 

@@ -13,7 +13,7 @@ default for each; change any by answering it.
 | 6 | Hearts between Levels: reset or carry over? | Reset to 5 each Level |
 | 7 | Controls feel: variable jump? run button? | Variable jump yes; no run button |
 | 8 | Save progress between sessions? | Yes, unlocked Levels + Diamond total in browser storage |
-| 9 | Level themes | Sunny Meadow → Rumble Cave → Snowy Hills → Cloud Climb → Spooky Castle |
+| 9 | Level themes | Four Worlds of five: A Home Hills (meadow, cave, snow, sky, castle), B Alpine Peaks (alpine, storm/rain, glacier, summit), C Sunburnt Desert (desert, pyramid, tomb), D Far & Wild (jungle, haunted, volcano, rooftops, space) |
 | 10 | Menus | Title (level list) → Character Select → Level → Level Complete → …; Pause: resume/restart/quit; no timer |
 
 ## Also not decided yet
@@ -23,3 +23,4 @@ default for each; change any by answering it.
 - Hosting (local only for now; GitHub Pages is the easy next step: `npm run build`, publish `dist/`).
 - ~~Levels are ASCII maps rather than Tiled files~~ — both work now: a Level with a `tiled` file loads the Tiled map, otherwise its ASCII rows (see `docs/rendering.md`).
 - More ideas not chosen yet: moving platforms, flying enemy (bat).
+- More World themes not built yet: beach (underwater would need a swim mode), ice cave, candy land, a flying/airship Level, a second MTB Trail setting (alpine or desert).

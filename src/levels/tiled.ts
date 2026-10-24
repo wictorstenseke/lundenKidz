@@ -24,7 +24,7 @@ export type ObjectKind =
 
 const OBJECT_KINDS: readonly string[] = [
   "start", "goal", "checkpoint", "diamond", "heart", "spring",
-  "walker", "hopper", "spiky", "plant", "fence", "sign", "lantern", "lightpost",
+  "walker", "hopper", "spiky", "plant", "fence", "sign", "vine", "lantern", "lightpost",
 ];
 
 export interface TiledProperty {
@@ -210,7 +210,8 @@ export function parseTiledLevel(map: TiledMap): ParsedLevel {
       case "spiky": level.enemies.push({ ...cell, kind }); break;
       case "plant":
       case "fence":
-      case "sign": level.decor.push({ ...cell, kind }); break;
+      case "sign":
+      case "vine": level.decor.push({ ...cell, kind }); break;
     }
   }
 

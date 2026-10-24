@@ -61,11 +61,45 @@ export function litIfEnabled<T extends Phaser.GameObjects.GameObject>(obj: T, en
   return obj;
 }
 
-export type LanternKind = "lantern" | "post";
+export type LanternKind = "lantern" | "post" | "flood";
 export const LANTERN_TEXTURE = "lantern";
 export const POST_TEXTURE = "light-post";
+export const FLOOD_TEXTURE = "flood-light";
 /** Glass centre, as an offset from the sprite's bottom-centre (x, y). */
-const GLASS_DY: Record<LanternKind, number> = { lantern: -5, post: -25 };
+const GLASS_DY: Record<LanternKind, number> = { lantern: -5, post: -25, flood: -78 };
+/** Default point-light radius and halo size per kind. */
+const RADIUS: Record<LanternKind, number> = { lantern: 70, post: 90, flood: 190 };
+const HALO_SCALE: Record<LanternKind, number> = { lantern: 0.6, post: 0.8, flood: 1.8 };
+
+const BEAM_TEXTURE = "flood-beam";
+const BEAM_W = 120;
+const BEAM_H = 96;
+
+/**
+ * A floodlight's beam: a soft cone that starts the width of the lamp panel and widens all the way
+ * to the ground, brightest at the source and fading as it spreads. Linear-filtered so it stays smooth.
+ */
+function makeBeamTexture(scene: Phaser.Scene): void {
+  if (scene.textures.exists(BEAM_TEXTURE)) return;
+  const canvas = scene.textures.createCanvas(BEAM_TEXTURE, BEAM_W, BEAM_H)!;
+  const ctx = canvas.getContext();
+  const topHalf = 11;
+  const bottomHalf = BEAM_W / 2;
+  for (let y = 0; y < BEAM_H; y++) {
+    const t = y / (BEAM_H - 1);
+    const half = topHalf + (bottomHalf - topHalf) * t;
+    const alpha = 0.85 * (1 - t) + 0.3 * t;
+    const g = ctx.createLinearGradient(BEAM_W / 2 - half, 0, BEAM_W / 2 + half, 0);
+    g.addColorStop(0, "rgba(255,255,255,0)");
+    g.addColorStop(0.3, `rgba(255,255,255,${alpha})`);
+    g.addColorStop(0.7, `rgba(255,255,255,${alpha})`);
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(BEAM_W / 2 - half, y, half * 2, 1);
+  }
+  canvas.refresh();
+  canvas.setFilter(Phaser.Textures.FilterMode.LINEAR);
+}
 
 /** "." transparent, O dark frame, Y warm glass, H highlight, G hook. */
 const LANTERN_SHAPE = [
@@ -113,15 +147,39 @@ const POST_SHAPE = [
   ".GGGGGG.",
   ".OOOOOO.",
 ];
+/** Stadium floodlight: a grid of lamps on a tall mast with a footed base (MTB Trail). */
+const FLOOD_SHAPE = [
+  "OOOOOOOOOOOOOOOOOOOOOOOOO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OOOOOOOOOOOOOOOOOOOOOOOOO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OOOOOOOOOOOOOOOOOOOOOOOOO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OOOOOOOOOOOOOOOOOOOOOOOOO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OWWOWWOWWOWWOWWOWWOWWOWWO",
+  "OOOOOOOOOOOOOOOOOOOOOOOOO",
+  "..........GGGGG..........",
+  "...........GGG...........",
+  ...Array.from({ length: 66 }, () => "...........GGG..........."),
+  "..........GGGGG..........",
+  ".........GGGGGGG.........",
+  "........OOOOOOOOO........",
+];
 const LANTERN_PALETTE: Record<string, string> = {
   O: "#2a2018",
   Y: "#ffc850",
   H: "#fff2b0",
   G: "#4a4a50",
+  W: "#f4f8ff",
 };
 const SHAPES: Record<LanternKind, { key: string; rows: string[] }> = {
   lantern: { key: LANTERN_TEXTURE, rows: LANTERN_SHAPE },
   post: { key: POST_TEXTURE, rows: POST_SHAPE },
+  flood: { key: FLOOD_TEXTURE, rows: FLOOD_SHAPE },
 };
 
 function makeLanternTexture(scene: Phaser.Scene, kind: LanternKind): void {
@@ -144,6 +202,8 @@ export interface Lantern {
   sprite: Phaser.GameObjects.Image;
   /** Soft additive halo behind the glass; absent when `halo` is off. */
   halo?: Phaser.GameObjects.Image;
+  /** Floodlights only: the cone of light down to the ground. */
+  beam?: Phaser.GameObjects.Image;
   light?: Phaser.GameObjects.Light;
   destroy(): void;
 }
@@ -175,9 +235,9 @@ export function addLantern(
   scene: Phaser.Scene,
   x: number,
   y: number,
-  opts: { kind?: LanternKind; color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean; halo?: boolean } = {},
+  opts: { kind?: LanternKind; color?: number; radius?: number; intensity?: number; flicker?: boolean; enabled?: boolean; halo?: boolean; beamDepth?: number } = {},
 ): Lantern {
-  const { kind = "lantern", color = 0xffb060, radius = kind === "post" ? 90 : 70, intensity = 1.2, flicker = true, enabled = true } = opts;
+  const { kind = "lantern", color = kind === "flood" ? 0xdfe9ff : 0xffb060, radius = RADIUS[kind], intensity = 1.2, flicker = kind !== "flood", enabled = true } = opts;
   makeLanternTexture(scene, kind);
   const sprite = scene.add.image(x, y, SHAPES[kind].key).setOrigin(0.5, 1).setDepth(1);
 
@@ -190,8 +250,23 @@ export function addLantern(
       .setTint(color)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setAlpha(0.3)
-      .setScale(kind === "post" ? 0.8 : 0.6);
+      .setScale(HALO_SCALE[kind]);
     scene.tweens.add({ targets: halo, alpha: 0.42, duration: 420, yoyo: true, repeat: -1, ease: "Sine.inOut", delay: (x * 7) % 420 });
+  }
+
+  // Floodlights throw a visible cone from the panel down to the ground (y is the mast's foot).
+  let beam: Phaser.GameObjects.Image | undefined;
+  if (kind === "flood" && (opts.halo ?? true)) {
+    makeBeamTexture(scene);
+    const from = y + GLASS_DY.flood + 4;
+    beam = scene.add
+      .image(x, from, BEAM_TEXTURE)
+      .setOrigin(0.5, 0)
+      .setDepth(opts.beamDepth ?? 0.9)
+      .setTint(color)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(0.7)
+      .setScale(1, (y - from) / BEAM_H);
   }
 
   let light: Phaser.GameObjects.Light | undefined;
@@ -219,6 +294,7 @@ export function addLantern(
     tween?.stop();
     if (light) scene.lights.removeLight(light);
     halo?.destroy();
+    beam?.destroy();
     sprite.destroy();
   };
   sprite.once(Phaser.GameObjects.Events.DESTROY, () => {
@@ -227,6 +303,7 @@ export function addLantern(
     tween?.stop();
     if (light) scene.lights.removeLight(light);
     halo?.destroy();
+    beam?.destroy();
   });
-  return { sprite, halo, light, destroy };
+  return { sprite, halo, beam, light, destroy };
 }

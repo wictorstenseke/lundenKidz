@@ -44,7 +44,11 @@ _Avoid_: Coin, gem, crystal
 
 **Level**:
 One side-scrolling stage, played in a fixed sequence with the others.
-_Avoid_: Stage, world, map
+_Avoid_: Stage, map
+
+**World**:
+A group of five Levels sharing a region, named by a letter (A Home Hills, B Alpine Peaks, C Sunburnt Desert, D Far & Wild). Levels are labelled by World and position: B-3. Finishing a World's last Level unlocks the next World.
+_Avoid_: Chapter, zone, episode
 
 **Cloud**:
 A platform floating in the sky that can be jumped up through and stood on.
@@ -57,6 +61,10 @@ _Avoid_: Trampoline, jump pad, bouncer
 **Ice**:
 Slippery ground (Snowy Hills) on which the Player glides when starting, stopping or turning.
 _Avoid_: Slide, slippery floor
+
+**Vine**:
+A leafy strand hanging from a ledge in the jungle; decoration only, nothing to climb.
+_Avoid_: Rope, liana
 
 **Goal Flag**:
 The flag at the end of a Level (far right, or the top for climbing Levels); touching it completes the Level.

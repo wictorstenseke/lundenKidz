@@ -14,6 +14,10 @@ import {
   rollOffDistance,
   rollOffSpeed,
   RAMPS,
+  LANDINGS,
+  landingHeightAt,
+  landingSlopeAt,
+  jumpGap,
   RUN,
   sagFor,
   speedAt,
@@ -130,5 +134,32 @@ describe("flips", () => {
     expect(sagFor(100)).toBe(1);
     expect(sagFor(350)).toBe(2);
     expect(sagFor(600)).toBe(3);
+  });
+});
+
+describe("landings", () => {
+  it("rise over the back face to full height and come back down to the trail", () => {
+    const l = LANDINGS.small;
+    expect(landingHeightAt(l, 0)).toBe(0);
+    expect(landingHeightAt(l, l.back)).toBeCloseTo(l.height);
+    expect(landingHeightAt(l, 1)).toBe(0);
+  });
+
+  it("only descend after the back face, steepest near the top", () => {
+    const l = LANDINGS.big;
+    let prev = landingHeightAt(l, l.back);
+    for (let t = l.back + 0.05; t <= 1; t += 0.05) {
+      const h = landingHeightAt(l, t);
+      expect(h).toBeLessThanOrEqual(prev);
+      prev = h;
+    }
+    expect(landingSlopeAt(l, l.back + 0.05)).toBeLessThan(landingSlopeAt(l, 0.9));
+    expect(landingSlopeAt(l, 0.5)).toBeLessThan(0);
+  });
+
+  it("leave a longer run-up to the landing at speed, within limits", () => {
+    expect(jumpGap(RUN.startSpeed)).toBeGreaterThanOrEqual(50);
+    expect(jumpGap(RUN.maxSpeed)).toBeLessThanOrEqual(150);
+    expect(jumpGap(RUN.maxSpeed)).toBeGreaterThan(jumpGap(RUN.startSpeed));
   });
 });

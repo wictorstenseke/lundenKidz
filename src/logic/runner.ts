@@ -60,9 +60,49 @@ const UNLOCKS: [number, Pattern[]][] = [
  * The surface is curved (height grows with the square of the distance), so it steepens to the lip.
  */
 export const RAMPS = {
-  small: { length: 44, height: 20, launch: 470 },
-  big: { length: 66, height: 32, launch: 540 },
+  small: { length: 58, height: 27, launch: 500 },
+  big: { length: 92, height: 46, launch: 590 },
 } as const;
+
+/**
+ * Landing mounds that pair with the kickers: a short steep back face up to the top, then a long
+ * transition down to the trail, steep at the top and flattening out at the bottom.
+ */
+export const LANDINGS = {
+  small: { length: 84, height: 22, back: 0.12 },
+  big: { length: 126, height: 38, back: 0.1 },
+} as const;
+
+export interface LandingShape {
+  length: number;
+  height: number;
+  /** Share of the length taken by the back face. */
+  back: number;
+}
+
+const LANDING_EASE = 1.6;
+
+/** Height of a landing's surface at `t` (0 at its back edge, 1 where it meets the trail). */
+export function landingHeightAt(landing: LandingShape, t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 0;
+  if (t < landing.back) return landing.height * Math.sqrt(t / landing.back);
+  const u = (t - landing.back) / (1 - landing.back);
+  return landing.height * (1 - u) ** LANDING_EASE;
+}
+
+/** Rise per pixel forward at `t` along a landing (negative on the way down). */
+export function landingSlopeAt(landing: LandingShape, t: number): number {
+  const dt = 0.002;
+  const a = landingHeightAt(landing, Math.max(0, t - dt));
+  const b = landingHeightAt(landing, Math.min(1, t + dt));
+  return (b - a) / (landing.length * (Math.min(1, t + dt) - Math.max(0, t - dt)));
+}
+
+/** Flat trail between a kicker's lip and its landing: longer the faster the ride, within reason. */
+export function jumpGap(speed: number): number {
+  return Math.round(Math.min(150, Math.max(50, speed * 0.42)));
+}
 
 type RampShape = { length: number; height: number };
 

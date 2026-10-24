@@ -37,8 +37,15 @@ export interface CameraFx {
   setVignette(on: boolean): void;
 }
 
-/** Adds bloom (internal, keeps pixel look) and vignette (external, screen-aligned) per flags. */
-export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera, flags: FxFlags = FX): CameraFx {
+/**
+ * Adds bloom (internal, keeps pixel look) and vignette (external, screen-aligned) per flags.
+ * `vignetteStrength` overrides the tuned default (daylight themes pass a near-zero value).
+ */
+export function applyCameraFx(
+  camera: Phaser.Cameras.Scene2D.Camera,
+  flags: FxFlags = FX,
+  vignetteStrength: number = FX_TUNING.vignetteStrength,
+): CameraFx {
   const t = FX_TUNING;
 
   const makeBloom = (): Phaser.Filters.ParallelFilters => {
@@ -50,7 +57,7 @@ export function applyCameraFx(camera: Phaser.Cameras.Scene2D.Camera, flags: FxFl
     return pf;
   };
   const makeVignette = (): Phaser.Filters.Vignette =>
-    camera.filters.external.addVignette(t.vignetteX, t.vignetteY, t.vignetteRadius, t.vignetteStrength);
+    camera.filters.external.addVignette(t.vignetteX, t.vignetteY, t.vignetteRadius, vignetteStrength);
 
   const fx: CameraFx = {
     setBloom(on) {

@@ -32,14 +32,23 @@ npm run build    # static build in dist/
 
 ## Levels
 
-Five levels: Sunny Meadow → Rumble Cave → Snowy Hills (ice) → Cloud Climb (vertical) → Spooky Castle.
+Twenty levels in four worlds of five (`src/levels/worlds.ts`); finishing a level unlocks the next, so World B opens after A-5:
+
+- **World A: Home Hills** — Sunny Meadow → Rumble Cave → Snowy Hills (ice) → Cloud Climb (vertical) → Spooky Castle
+- **World B: Alpine Peaks** — Pine Trail → Rocky Ridge → Thunder Pass (rain) → Glacier Gap (ice, springs) → Summit Climb (vertical)
+- **World C: Sunburnt Desert** — Dune Dash → Cactus Canyon → Pyramid Steps → Sandstorm Run → Pharaoh's Tomb
+- **World D: Far & Wild** — Vine Valley (jungle, rain, vines) → Whispering Woods (haunted, fog) → Lava Leap (volcano, embers) → Rooftop Run (night city, roofs at different heights) → Star Station (space, low gravity)
+
+Themes (sky, tiles, backdrop, music, weather, gravity) are in `src/levels/themes.ts`. Theme flags: `rain`, `fog`, `embers`, `stars`
+switch on the matching effect (`src/fx/particles.ts`, `src/fx/sky.ts`); `gravity` scales world gravity; `backdrop.paint`
+draws the parallax bands in code (`skyline`, `station` in `src/fx/parallax.ts`) where the Kenney sheet has no strip.
 
 Plus **MTB Trail** (title menu, always open): the kid rides a mountain bike on their own, jump only,
 faster and faster, ramps, gaps, rocks and logs, 3 Hearts, top-5 highscores with the kid's face. Pacing in `src/logic/runner.ts`, scene in `src/scenes/Runner.ts`.
 
 ASCII maps in `src/levels/levels.ts`, 12+ rows tall (the camera scrolls up for taller ones). Legend in `src/levels/parse.ts`
 (`#` ground, `B` block, `=` one-way platform, `~` cloud, `j` spring, `P` start, `G` Goal Flag, `c` Checkpoint,
-`d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign, `l` lantern, `L` light post).
+`d` Diamond, `h` Heart Pickup, `w` Walker, `o` Hopper, `s` Spiky, `t` plant, `f` fence, `i` sign, `v` vine, `l` lantern, `L` light post).
 `npm test` checks every level (things stand on ground, start + goal exist).
 
 A level can also be a Tiled map: set `tiled: "assets/levels/<name>.tmj"` on its entry (Sunny Meadow is one);

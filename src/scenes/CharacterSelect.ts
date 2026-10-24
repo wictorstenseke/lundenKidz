@@ -4,9 +4,11 @@ import { CHARACTERS, wearOutfit, wearPreviousOutfit } from "../characters";
 import { SCENES } from "../config";
 import { Controls } from "../input/controls";
 import { LEVELS } from "../levels/levels";
+import { levelLabel, worldOf } from "../levels/worlds";
 import { randomOutfit, type Outfit } from "../logic/outfits";
 import { ANIM, bodyTexture, FRAME_SIZE, headAnchor, makeBike, makeBody, ORIGIN } from "../objects/sprites";
 import { handleGlobalKeys, text, unlockAudioOnInput } from "../ui";
+import type { TitleData } from "./Title";
 
 /** Either a Level to play, or `runner` for MTB Trail. */
 export type SelectData = { levelIndex: number } | { runner: true };
@@ -31,7 +33,7 @@ export class CharacterSelect extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
     this.cameras.main.setBackgroundColor(0x2a2440);
-    const heading = "runner" in this.target ? "MTB Trail" : `Level ${this.target.levelIndex + 1}: ${LEVELS[this.target.levelIndex].name}`;
+    const heading = "runner" in this.target ? "MTB Trail" : `Level ${levelLabel(this.target.levelIndex)}: ${LEVELS[this.target.levelIndex].name}`;
     text(this, width / 2, 50, heading, 20, "#ffe066");
     text(this, width / 2, 100, "Who's playing?", 16);
 
@@ -67,7 +69,7 @@ export class CharacterSelect extends Phaser.Scene {
     if (this.controls.pressed("down")) this.newClothes();
     if (this.controls.pressed("up")) this.previousClothes();
     if (this.controls.pressed("confirm")) this.start();
-    if (this.controls.pressed("back")) this.scene.start(SCENES.title);
+    if (this.controls.pressed("back")) this.scene.start(SCENES.title, this.backTo());
   }
 
   private pick(i: number, andStart: boolean): void {
@@ -115,6 +117,11 @@ export class CharacterSelect extends Phaser.Scene {
       body.anims.stop();
       body.setFrame(0);
     }
+  }
+
+  /** Esc returns to the World this Level sits in, or the World list for MTB Trail. */
+  private backTo(): TitleData {
+    return "runner" in this.target ? {} : { world: worldOf(this.target.levelIndex) };
   }
 
   private start(): void {

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { touchHeld, touchTapped } from "./touch";
+import { setTouchLayout, touchHeld, touchTapped, type TouchLayout } from "./touch";
 
 type Action = "left" | "right" | "up" | "down" | "jump" | "sprint" | "confirm" | "back" | "pause" | "mute";
 type State = Record<Action, boolean>;
@@ -43,7 +43,12 @@ export class Controls {
   /** Keys pressed since the last update; catches taps shorter than a frame. */
   private tapped = new Set<number>();
 
-  constructor(private readonly scene: Phaser.Scene) {
+  /** @param layout which on-screen touch controls this scene wants; menus get the d-pad, play gets the stick. */
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly layout: TouchLayout = "menu",
+  ) {
+    setTouchLayout(layout);
     const kb = scene.input.keyboard!;
     const names = new Set(ACTIONS.flatMap((a) => KEYS[a]));
     this.keys = new Map([...names].map((n) => [n, kb.addKey(n, true)]));
@@ -57,6 +62,7 @@ export class Controls {
 
   /** Forget edges, e.g. when a scene resumes while a button is still held. */
   reset(): void {
+    setTouchLayout(this.layout);
     this.tapped.clear();
     touchTapped.clear();
     this.current = this.read();
